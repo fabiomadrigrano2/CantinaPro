@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "@/types/database.types";
-import type { CookieOptions } from "@supabase/ssr";
 
 // First pass: browser lands here with tokens in the hash fragment.
 // The server can't read the hash, so we serve minimal inline JS that
@@ -48,15 +47,15 @@ export async function GET(request: NextRequest) {
   }
 
   // Second pass — set the session server-side and collect the cookies
-  const pendingCookies: { name: string; value: string; options: CookieOptions }[] = [];
+  const pendingCookies: { name: string; value: string; options: object }[] = [];
 
   const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet) => pendingCookies.push(...cookiesToSet),
+        getAll() { return request.cookies.getAll(); },
+        setAll(cookiesToSet) { pendingCookies.push(...cookiesToSet); },
       },
     }
   );
