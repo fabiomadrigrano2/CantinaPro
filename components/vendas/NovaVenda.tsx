@@ -116,8 +116,12 @@ const SPEECH_CORRECTIONS: [RegExp, string][] = [
   // Bis
   [/\bbiz\b/gi, "Bis"],
   // Twix
-  [/\bt[uw][iy]s?\b/gi, "Twix"],
+  [/\bt[uw][iy][sx]?\b/gi, "Twix"],
   [/\btu[iy]x\b/gi, "Twix"],
+  // KitKat (transcrição direta)
+  [/\bkit\s*kat\b/gi, "KitKat"],
+  // Snickers (erro fonético comum: sneakers, snickers)
+  [/\bsn[ei][ae]k[ae]rs?\b/gi, "Snickers"],
   // Toddy
   [/\bt[o0]d[iy]\b/gi, "Toddy"],
   // Nescau
@@ -265,34 +269,61 @@ function parseProductsText(
 ): { found: ParsedItem[]; notFound: string[] } {
   const found: ParsedItem[] = [];
   const notFound: string[] = [];
-  const parts = text.split(/\s+(?:e|mais)\s+/i);
-  for (const part of parts) {
-    const raw = part.trim();
-    if (!raw) continue;
-    const tokens = raw.split(/\s+/);
-    let qty = 1;
-    let nameStart = 0;
-    let nameEnd = tokens.length;
 
-    // Tenta quantidade no primeiro token ("dois fofuras")
-    const qFirst = parseQtyWord(tokens[0]);
-    if (qFirst !== null) {
-      qty = qFirst;
-      nameStart = 1;
-    } else if (tokens.length > 1) {
-      // Tenta quantidade no último token ("fofura dois" ou "fofura 2")
-      const qLast = parseQtyWord(tokens[tokens.length - 1]);
-      if (qLast !== null) {
-        qty = qLast;
-        nameEnd = tokens.length - 1;
+  // Divide por conjunções explícitas ("e", "mais")
+  const conjParts = text.split(/\s+(?:e|mais)\s+/i);
+
+  for (const conjPart of conjParts) {
+    const raw = conjPart.trim();
+    if (!raw) continue;
+
+    const tokens = raw.split(/\s+/);
+
+    // Dentro de cada segmento, palavras de quantidade após um nome
+    // delimitam um novo item — cobre "um X uma Y um Z" sem "e" entre eles.
+    const groups: string[][] = [];
+    let current: string[] = [];
+    let hasNonQty = false;
+
+    for (const token of tokens) {
+      const isQty = parseQtyWord(token) !== null;
+      if (isQty && hasNonQty) {
+        groups.push(current);
+        current = [token];
+        hasNonQty = false;
+      } else {
+        current.push(token);
+        if (!isQty) hasNonQty = true;
       }
     }
+    if (current.length > 0) groups.push(current);
 
-    const name = tokens.slice(nameStart, nameEnd).join(" ");
-    const product = fuzzyMatchProduto(name, list);
-    if (product) found.push({ product, qty });
-    else notFound.push(raw);
+    for (const group of groups) {
+      let qty = 1;
+      let nameStart = 0;
+      let nameEnd = group.length;
+
+      const qFirst = parseQtyWord(group[0]);
+      if (qFirst !== null) {
+        qty = qFirst;
+        nameStart = 1;
+      } else if (group.length > 1) {
+        const qLast = parseQtyWord(group[group.length - 1]);
+        if (qLast !== null) {
+          qty = qLast;
+          nameEnd = group.length - 1;
+        }
+      }
+
+      const name = group.slice(nameStart, nameEnd).join(" ");
+      if (!name.trim()) continue;
+
+      const product = fuzzyMatchProduto(name, list);
+      if (product) found.push({ product, qty });
+      else notFound.push(group.join(" "));
+    }
   }
+
   return { found, notFound };
 }
 
