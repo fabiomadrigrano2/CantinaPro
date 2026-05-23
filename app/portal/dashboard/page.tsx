@@ -69,10 +69,10 @@ export default async function PortalDashboardPage() {
 
   if (!responsavel) redirect("/portal/login");
 
-  // Find first linked aluno with turma name
+  // Find first linked aluno — includes saldo/tipo_conta/limite_diario stored on alunos
   const { data: link } = await admin
     .from("aluno_responsavel")
-    .select("aluno_id, alunos(id, nome, turma_id, turmas(nome))")
+    .select("aluno_id, alunos(id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome))")
     .eq("responsavel_id", responsavel.id)
     .limit(1)
     .maybeSingle();
@@ -80,31 +80,33 @@ export default async function PortalDashboardPage() {
   const alunoRaw = (link as any)?.alunos;
   if (!alunoRaw) redirect("/portal/login");
 
-  const alunoId: string   = alunoRaw.id;
-  const alunoNome: string = alunoRaw.nome;
+  const alunoId: string          = alunoRaw.id;
+  const alunoNome: string        = alunoRaw.nome;
   const turmaNome: string | null = alunoRaw.turmas?.nome ?? null;
 
-  // Get financial account
+  // contas table is the canonical ledger; alunos.saldo is the denormalized fallback
   const { data: conta } = await admin
     .from("contas")
     .select("saldo, tipo")
     .eq("aluno_id", alunoId)
+    .eq("cantina_id", CANTINA_ID)
     .maybeSingle();
 
-  // Get daily limit
+  // limites_aluno stores limits set via the portal; alunos.limite_diario is the admin fallback
   const { data: limiteData } = await admin
     .from("limites_aluno")
     .select("limite_valor_diario")
     .eq("aluno_id", alunoId)
+    .eq("cantina_id", CANTINA_ID)
     .maybeSingle();
 
   const aluno: AlunoPortal = {
     id:            alunoId,
     nome:          alunoNome,
     turma:         turmaNome,
-    saldo:         conta?.saldo ?? 0,
-    tipo_conta:    conta?.tipo ?? "credito",
-    limite_diario: limiteData?.limite_valor_diario ?? 0,
+    saldo:         conta?.saldo         ?? alunoRaw.saldo         ?? 0,
+    tipo_conta:    conta?.tipo          ?? alunoRaw.tipo_conta    ?? "credito",
+    limite_diario: limiteData?.limite_valor_diario ?? alunoRaw.limite_diario ?? 0,
   };
 
   const today    = todayBR();
