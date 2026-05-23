@@ -40,9 +40,11 @@ export default function PortalAuthPage() {
 
     const supabase = createClient();
 
+    console.log("[portal/auth] document.cookie ANTES:", document.cookie || "(vazio)");
+
     supabase.auth
       .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ data, error: sessionError }) => {
+      .then(async ({ data, error: sessionError }) => {
         console.log("[portal/auth] setSession resultado:", {
           user:  data?.user?.email ?? null,
           error: sessionError ? `${sessionError.name}: ${sessionError.message}` : null,
@@ -53,6 +55,15 @@ export default function PortalAuthPage() {
           setState("error");
           return;
         }
+
+        console.log("[portal/auth] document.cookie DEPOIS:", document.cookie || "(vazio)");
+
+        const { data: sessionCheck } = await supabase.auth.getSession();
+        console.log("[portal/auth] getSession() após setSession:", {
+          hasSession: !!sessionCheck.session,
+          user:       sessionCheck.session?.user?.email ?? null,
+          expiresAt:  sessionCheck.session?.expires_at ?? null,
+        });
 
         console.log("[portal/auth] sessão OK — aguardando clique do usuário");
         setState("ready");
