@@ -593,7 +593,7 @@ export default function NovaVenda() {
 
     const stopAfterSilence = () => {
       if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => rec.stop(), 1500);
+      silenceTimer = setTimeout(() => rec.stop(), 3000);
     };
 
     rec.onstart = () => setListening(true);
