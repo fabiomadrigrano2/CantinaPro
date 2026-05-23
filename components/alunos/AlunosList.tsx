@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { addResponsavel, removeResponsavel } from "@/app/alunos/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -266,22 +267,20 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     if (!respForm.nome.trim()) { setRespError("Informe o nome do responsável."); return; }
     setSavingResp(true);
     setRespError(null);
-    const supabase = createClient();
 
     if (editingAluno) {
-      const { data: saved, error } = await supabase
-        .from("responsaveis")
-        .insert({ cantina_id: CANTINA_ID, nome: respForm.nome.trim(), email: respForm.email.trim() || null })
-        .select("id, nome, email")
-        .single();
-      if (error) { setSavingResp(false); setRespError(error.message); return; }
-      await supabase.from("aluno_responsavel").insert({ aluno_id: editingAluno.id, responsavel_id: saved.id, parentesco: respForm.parentesco || null });
-      setResponsaveis((prev) => [...prev, { ...saved, parentesco: respForm.parentesco || null }]);
+      const result = await addResponsavel(editingAluno.id, {
+        nome:       respForm.nome.trim(),
+        email:      respForm.email.trim() || null,
+        parentesco: respForm.parentesco || null,
+      });
+      if ("error" in result) { setSavingResp(false); setRespError(result.error); return; }
+      setResponsaveis((prev) => [...prev, result]);
     } else {
       setResponsaveis((prev) => [...prev, {
-        id: `tmp-${Date.now()}`,
-        nome: respForm.nome.trim(),
-        email: respForm.email.trim() || null,
+        id:         `tmp-${Date.now()}`,
+        nome:       respForm.nome.trim(),
+        email:      respForm.email.trim() || null,
         parentesco: respForm.parentesco || null,
       }]);
     }
@@ -292,11 +291,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
 
   async function handleRemoveResponsavel(resp: Responsavel) {
     if (editingAluno && !resp.id.startsWith("tmp-")) {
-      const supabase = createClient();
-      await supabase.from("aluno_responsavel")
-        .delete()
-        .eq("aluno_id", editingAluno.id)
-        .eq("responsavel_id", resp.id);
+      await removeResponsavel(editingAluno.id, resp.id);
     }
     setResponsaveis((prev) => prev.filter((r) => r.id !== resp.id));
   }
@@ -353,16 +348,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       // sync contas (best-effort)
       await supabase.from("contas").insert({ cantina_id: CANTINA_ID, aluno_id: aluno.id, saldo: parseFloat(form.saldo_inicial) || 0 });
 
-      // save pending guardians
+      // save pending guardians via server action (bypasses RLS correctly)
       for (const resp of responsaveis) {
-        const { data: savedResp } = await supabase
-          .from("responsaveis")
-          .insert({ cantina_id: CANTINA_ID, nome: resp.nome, email: resp.email })
-          .select("id")
-          .single();
-        if (savedResp) {
-          await supabase.from("aluno_responsavel").insert({ aluno_id: aluno.id, responsavel_id: savedResp.id, parentesco: resp.parentesco });
-        }
+        await addResponsavel(aluno.id, {
+          nome:       resp.nome,
+          email:      resp.email,
+          parentesco: resp.parentesco,
+        });
       }
 
       setSaving(false);

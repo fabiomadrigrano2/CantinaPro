@@ -8,6 +8,42 @@ type ContaTipo = Database["public"]["Enums"]["conta_tipo"];
 
 const CANTINA_ID_TEMP = "c7301d8b-890b-4775-986e-bb88979326f3";
 
+export async function addResponsavel(
+  alunoId: string,
+  data: { nome: string; email: string | null; parentesco: string | null }
+): Promise<{ id: string; nome: string; email: string | null; parentesco: string | null } | { error: string }> {
+  const admin = createAdminClient();
+
+  const { data: resp, error: respError } = await admin
+    .from("responsaveis")
+    .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
+    .select("id, nome, email")
+    .single();
+
+  if (respError) return { error: respError.message };
+
+  const { error: linkError } = await admin
+    .from("aluno_responsavel")
+    .insert({ aluno_id: alunoId, responsavel_id: resp.id, parentesco: data.parentesco });
+
+  if (linkError) return { error: linkError.message };
+
+  return { ...resp, parentesco: data.parentesco };
+}
+
+export async function removeResponsavel(
+  alunoId: string,
+  responsavelId: string
+): Promise<{ error?: string }> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("aluno_responsavel")
+    .delete()
+    .eq("aluno_id", alunoId)
+    .eq("responsavel_id", responsavelId);
+  return error ? { error: error.message } : {};
+}
+
 export async function createAluno(data: {
   nome: string;
   turma: string;
