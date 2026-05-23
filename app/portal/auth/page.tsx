@@ -9,19 +9,28 @@ export default function PortalAuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.slice(1));
+    const rawHash = window.location.hash;
+    console.log("[portal/auth] hash completo:", rawHash || "(vazio)");
+
+    const params = new URLSearchParams(rawHash.slice(1));
 
     const errorCode = params.get("error");
     if (errorCode) {
       const desc = params.get("error_description") ?? "Link inválido ou expirado.";
-      setError(desc.replace(/\+/g, " "));
+      const msg  = desc.replace(/\+/g, " ");
+      console.error("[portal/auth] erro no hash:", errorCode, msg);
+      setError(msg);
       return;
     }
 
     const accessToken  = params.get("access_token");
     const refreshToken = params.get("refresh_token");
 
+    console.log("[portal/auth] access_token presente:", !!accessToken);
+    console.log("[portal/auth] refresh_token presente:", !!refreshToken);
+
     if (!accessToken || !refreshToken) {
+      console.error("[portal/auth] tokens ausentes — hash não contém access_token/refresh_token");
       setError("Link inválido ou expirado. Solicite um novo link de acesso.");
       return;
     }
@@ -30,11 +39,17 @@ export default function PortalAuthPage() {
 
     supabase.auth
       .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error: sessionError }) => {
+      .then(({ data, error: sessionError }) => {
+        console.log("[portal/auth] setSession resultado:", {
+          user:  data?.user?.email ?? null,
+          error: sessionError ? `${sessionError.name}: ${sessionError.message}` : null,
+        });
+
         if (sessionError) {
           setError("Erro ao iniciar sessão. Solicite um novo link de acesso.");
           return;
         }
+        console.log("[portal/auth] sessão OK — redirecionando para /portal/dashboard");
         router.replace("/portal/dashboard");
       });
   }, [router]);
