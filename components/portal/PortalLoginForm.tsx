@@ -1,14 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { sendMagicLink } from "@/app/portal/login/actions";
 
-type Step = "email" | "sent" | "error";
+type Step = "email" | "sent";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  link_invalido:      "Link inválido. Solicite um novo link de acesso.",
-  link_expirado:      "Link expirado. Solicite um novo link de acesso.",
-  nao_autorizado:     "Acesso não autorizado.",
+  link_invalido:        "Link inválido. Solicite um novo link de acesso.",
+  link_expirado:        "Link expirado. Solicite um novo link de acesso.",
+  nao_autorizado:       "Acesso não autorizado.",
   email_nao_cadastrado: "E-mail não cadastrado como responsável nesta cantina. Entre em contato com a cantina.",
 };
 
@@ -18,8 +18,7 @@ export default function PortalLoginForm() {
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
-    const params = new URLSearchParams(window.location.search);
-    const key    = params.get("error");
+    const key = new URLSearchParams(window.location.search).get("error");
     return key ? (ERROR_MESSAGES[key] ?? "Ocorreu um erro. Tente novamente.") : null;
   });
 
@@ -28,19 +27,13 @@ export default function PortalLoginForm() {
     setLoading(true);
     setError(null);
 
-    const supabase     = createClient();
-    const redirectTo   = `${window.location.origin}/auth/callback?next=/portal/dashboard`;
-
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
-    });
+    const redirectTo = `${window.location.origin}/auth/callback?next=/portal/dashboard`;
+    const result     = await sendMagicLink(email, redirectTo);
 
     setLoading(false);
 
-    if (otpError) {
-      // "shouldCreateUser: false" retorna erro quando o e-mail não existe no Auth
-      setError("E-mail não encontrado. Verifique se está cadastrado ou entre em contato com a cantina.");
+    if (!result.ok) {
+      setError(result.error ?? "Ocorreu um erro. Tente novamente.");
       return;
     }
 
@@ -108,7 +101,7 @@ export default function PortalLoginForm() {
         {loading ? (
           <>
             <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            Enviando...
+            Verificando...
           </>
         ) : (
           "Enviar link de acesso"
