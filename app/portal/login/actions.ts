@@ -15,7 +15,7 @@ export async function sendMagicLink(
     const h     = headers();
     const host  = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
     const proto = h.get("x-forwarded-proto") ?? "http";
-    const emailRedirectTo = `${proto}://${host}/portal/auth`;
+    const emailRedirectTo = `${proto}://${host}/api/portal/auth`;
 
     console.log("[sendMagicLink] iniciando para:", email, "emailRedirectTo:", emailRedirectTo);
 
