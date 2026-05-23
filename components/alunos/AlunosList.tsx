@@ -672,6 +672,82 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 />
               </div>
 
+              {/* ── Responsáveis ── */}
+              <div className="space-y-3 pt-2 border-t border-cp-border">
+                <p className="text-sm font-medium text-gray-300">Responsáveis</p>
+
+                {responsaveis.length > 0 && (
+                  <div className="space-y-2">
+                    {responsaveis.map((resp) => (
+                      <div
+                        key={resp.id}
+                        className="flex items-center gap-2 rounded-lg bg-cp-elevated border border-cp-border px-3 py-2.5"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">{resp.nome}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {resp.parentesco && (
+                              <span className="text-xs text-gray-500 capitalize">{resp.parentesco}</span>
+                            )}
+                            {resp.email && (
+                              <span className="text-xs text-gray-600 truncate">{resp.email}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveResponsavel(resp)}
+                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2 rounded-xl bg-cp-elevated/50 border border-cp-border/60 px-4 py-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {responsaveis.length === 0 ? "Adicionar responsável" : "Adicionar outro"}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Nome completo"
+                    value={respForm.nome}
+                    onChange={(e) => setRespForm((f) => ({ ...f, nome: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <input
+                    type="email"
+                    placeholder="E-mail (acesso ao portal)"
+                    value={respForm.email}
+                    onChange={(e) => setRespForm((f) => ({ ...f, email: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <select
+                    value={respForm.parentesco}
+                    onChange={(e) => setRespForm((f) => ({ ...f, parentesco: e.target.value }))}
+                    className={inputCls}
+                  >
+                    <option value="pai">Pai</option>
+                    <option value="mae">Mãe</option>
+                    <option value="avo">Avô</option>
+                    <option value="avo_f">Avó</option>
+                    <option value="tio">Tio / Tia</option>
+                    <option value="responsavel">Responsável</option>
+                  </select>
+                  {respError && <p className="text-xs text-red-400">{respError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleAddResponsavel}
+                    disabled={savingResp || !respForm.nome.trim()}
+                    className="w-full py-2 px-4 bg-cp-elevated border border-cp-border hover:border-orange-500/40 hover:text-orange-400 disabled:opacity-40 text-gray-300 text-sm font-medium rounded-lg transition"
+                  >
+                    {savingResp ? "Adicionando..." : "+ Adicionar responsável"}
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1.5">
                   Telefone do responsável (WhatsApp)
@@ -810,82 +886,6 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   </p>
                 </div>
               )}
-
-              {/* ── Responsáveis ── */}
-              <div className="space-y-3 pt-2 border-t border-cp-border">
-                <p className="text-sm font-medium text-gray-300">Responsáveis</p>
-
-                {responsaveis.length > 0 && (
-                  <div className="space-y-2">
-                    {responsaveis.map((resp) => (
-                      <div
-                        key={resp.id}
-                        className="flex items-center gap-2 rounded-lg bg-cp-elevated border border-cp-border px-3 py-2.5"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium truncate">{resp.nome}</p>
-                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                            {resp.parentesco && (
-                              <span className="text-xs text-gray-500 capitalize">{resp.parentesco}</span>
-                            )}
-                            {resp.email && (
-                              <span className="text-xs text-gray-600 truncate">{resp.email}</span>
-                            )}
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveResponsavel(resp)}
-                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-2 rounded-xl bg-cp-elevated/50 border border-cp-border/60 px-4 py-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
-                    {responsaveis.length === 0 ? "Adicionar responsável" : "Adicionar outro"}
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="Nome completo"
-                    value={respForm.nome}
-                    onChange={(e) => setRespForm((f) => ({ ...f, nome: e.target.value }))}
-                    className={inputCls}
-                  />
-                  <input
-                    type="email"
-                    placeholder="E-mail (acesso ao portal)"
-                    value={respForm.email}
-                    onChange={(e) => setRespForm((f) => ({ ...f, email: e.target.value }))}
-                    className={inputCls}
-                  />
-                  <select
-                    value={respForm.parentesco}
-                    onChange={(e) => setRespForm((f) => ({ ...f, parentesco: e.target.value }))}
-                    className={inputCls}
-                  >
-                    <option value="pai">Pai</option>
-                    <option value="mae">Mãe</option>
-                    <option value="avo">Avô</option>
-                    <option value="avo_f">Avó</option>
-                    <option value="tio">Tio / Tia</option>
-                    <option value="responsavel">Responsável</option>
-                  </select>
-                  {respError && <p className="text-xs text-red-400">{respError}</p>}
-                  <button
-                    type="button"
-                    onClick={handleAddResponsavel}
-                    disabled={savingResp || !respForm.nome.trim()}
-                    className="w-full py-2 px-4 bg-cp-elevated border border-cp-border hover:border-orange-500/40 hover:text-orange-400 disabled:opacity-40 text-gray-300 text-sm font-medium rounded-lg transition"
-                  >
-                    {savingResp ? "Adicionando..." : "+ Adicionar responsável"}
-                  </button>
-                </div>
-              </div>
 
               {formError && (
                 <div className="rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
