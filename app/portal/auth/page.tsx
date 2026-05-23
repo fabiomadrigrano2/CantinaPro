@@ -50,7 +50,7 @@ export default function PortalAuthPage() {
           return;
         }
         console.log("[portal/auth] sessão OK — redirecionando para /portal/dashboard");
-        router.replace("/portal/dashboard");
+        window.location.href = "/portal/dashboard";
       });
   }, [router]);
 
