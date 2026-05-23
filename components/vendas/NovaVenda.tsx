@@ -47,6 +47,16 @@ const PT_NUMBERS: Record<string, number> = {
   oito: 8,
   nove: 9,
   dez: 10,
+  onze: 11,
+  doze: 12,
+  treze: 13,
+  catorze: 14, quatorze: 14,
+  quinze: 15,
+  dezesseis: 16, dezasseis: 16,
+  dezessete: 17, dezassete: 17,
+  dezoito: 18,
+  dezenove: 19, dezanove: 19,
+  vinte: 20,
 };
 
 function parseQtyWord(word: string): number | null {
@@ -169,26 +179,75 @@ function fuzzyMatchAluno(query: string, list: Aluno[]): Aluno | null {
   return bestScore >= 40 ? best : null;
 }
 
+// Gera variantes normalizadas da query: singular, base de diminutivo, etc.
+// Permite que "fofuras", "fofurinha" ou "fofurinhas" encontrem "Fofura".
+function queryVariants(qNorm: string): string[] {
+  const vars = new Set<string>([qNorm]);
+
+  // Remove plural simples: fofuras → fofura
+  if (qNorm.endsWith("s") && qNorm.length > 3) {
+    vars.add(qNorm.slice(0, -1));
+  }
+
+  // Remove sufixos diminutivos (maior primeiro para não remover parcialmente)
+  const dimSuffixes = [
+    "zinhas", "zinhos", "inhas", "inhos",
+    "zinha",  "zinho",  "inha",  "inho",
+  ];
+  for (const suf of dimSuffixes) {
+    if (qNorm.endsWith(suf) && qNorm.length > suf.length + 2) {
+      const base = qNorm.slice(0, -suf.length);
+      vars.add(base);
+      vars.add(base + "a");  // cafezinho → cafe + a = cafea... mas fofurinha → fofura ✓
+      vars.add(base + "o");
+      // também tenta sem plural se o base terminar em 's'
+      if (base.endsWith("s") && base.length > 3) vars.add(base.slice(0, -1));
+      break;
+    }
+  }
+
+  return Array.from(vars).filter((v) => v.length >= 2);
+}
+
+function scoreMatchNorm(qNorm: string, tNorm: string): number {
+  if (tNorm === qNorm) return 100;
+  if (tNorm.startsWith(qNorm) || qNorm.startsWith(tNorm)) return 85;
+  if (tNorm.includes(qNorm)) return 75;
+  const words = qNorm.split(/\s+/).filter((w) => w.length > 2);
+  if (words.length === 0) return 0;
+  const matched = words.filter((w) => tNorm.includes(w)).length;
+  return Math.round((matched / words.length) * 60);
+}
+
 function fuzzyMatchProduto(query: string, list: Produto[]): Produto | null {
   const corrected = applyCorrections(query);
-  const qKey = phoneticKey(corrected);
+  const qNorm = normalizeStr(corrected);
+  const variants = queryVariants(qNorm);
+
   let best: Produto | null = null;
   let bestScore = 0;
 
   for (const p of list) {
-    // Layer 1: fuzzy textual (query original e corrigida)
-    let s = Math.max(scoreMatch(query, p.nome), scoreMatch(corrected, p.nome));
+    const pNorm = normalizeStr(p.nome);
+    let s = 0;
 
-    // Layer 2 e 3: fonético (só vale a pena para chaves com 3+ chars)
-    if (qKey.length >= 3) {
-      const pKey = phoneticKey(p.nome);
-      if (qKey === pKey) {
+    // Layer 1: textual em todas as variantes (plural→singular, diminutivo→base)
+    for (const v of variants) {
+      s = Math.max(s, scoreMatchNorm(v, pNorm));
+    }
+
+    // Layer 2: fonético em todas as variantes
+    const pKey = phoneticKey(p.nome);
+    for (const v of variants) {
+      if (v.length < 3) continue;
+      const vKey = phoneticKey(v);
+      if (vKey === pKey) {
         s = Math.max(s, 95);
-      } else if (pKey.includes(qKey) || qKey.includes(pKey)) {
+      } else if (pKey.includes(vKey) || vKey.includes(pKey)) {
         s = Math.max(s, 80);
       } else if (pKey.length >= 3) {
-        const dist = levenshtein(qKey, pKey);
-        const sim = 1 - dist / Math.max(qKey.length, pKey.length);
+        const dist = levenshtein(vKey, pKey);
+        const sim = 1 - dist / Math.max(vKey.length, pKey.length);
         if (sim >= 0.7) s = Math.max(s, Math.round(sim * 85));
       }
     }
@@ -213,9 +272,23 @@ function parseProductsText(
     const tokens = raw.split(/\s+/);
     let qty = 1;
     let nameStart = 0;
-    const q = parseQtyWord(tokens[0]);
-    if (q !== null) { qty = q; nameStart = 1; }
-    const name = tokens.slice(nameStart).join(" ");
+    let nameEnd = tokens.length;
+
+    // Tenta quantidade no primeiro token ("dois fofuras")
+    const qFirst = parseQtyWord(tokens[0]);
+    if (qFirst !== null) {
+      qty = qFirst;
+      nameStart = 1;
+    } else if (tokens.length > 1) {
+      // Tenta quantidade no último token ("fofura dois" ou "fofura 2")
+      const qLast = parseQtyWord(tokens[tokens.length - 1]);
+      if (qLast !== null) {
+        qty = qLast;
+        nameEnd = tokens.length - 1;
+      }
+    }
+
+    const name = tokens.slice(nameStart, nameEnd).join(" ");
     const product = fuzzyMatchProduto(name, list);
     if (product) found.push({ product, qty });
     else notFound.push(raw);
