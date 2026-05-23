@@ -27,8 +27,7 @@ export default function PortalLoginForm() {
     setLoading(true);
     setError(null);
 
-    const redirectTo = `${window.location.origin}/portal/auth`;
-    const result     = await sendMagicLink(email, redirectTo);
+    const result = await sendMagicLink(email);
 
     setLoading(false);
 

@@ -3,16 +3,21 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
 export async function sendMagicLink(
   email: string,
-  redirectTo: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    console.log("[sendMagicLink] iniciando para:", email, "redirectTo:", redirectTo);
+    const h     = headers();
+    const host  = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+    const proto = h.get("x-forwarded-proto") ?? "http";
+    const emailRedirectTo = `${proto}://${host}/portal/auth`;
+
+    console.log("[sendMagicLink] iniciando para:", email, "emailRedirectTo:", emailRedirectTo);
 
     const admin     = createAdminClient();
     const emailNorm = email.toLowerCase().trim();
@@ -50,7 +55,7 @@ export async function sendMagicLink(
 
     const { error: otpError } = await anonClient.auth.signInWithOtp({
       email: emailNorm,
-      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+      options: { shouldCreateUser: true, emailRedirectTo },
     });
 
     if (otpError) {
