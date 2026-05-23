@@ -581,16 +581,50 @@ export default function NovaVenda() {
     setVoiceError(null);
     const rec = new SR();
     rec.lang = "pt-BR";
-    rec.continuous = false;
+    // continuous:true para não parar na primeira pausa — essencial para pedidos longos.
+    // O silêncio de 1,5s após o último resultado dispara rec.stop() manualmente.
+    rec.continuous = true;
     rec.interimResults = false;
+    rec.maxAlternatives = 1;
     recognitionRef.current = rec;
+
+    let fullTranscript = "";
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const stopAfterSilence = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => rec.stop(), 1500);
+    };
+
     rec.onstart = () => setListening(true);
-    rec.onend = () => setListening(false);
-    rec.onerror = () => {
+
+    rec.onresult = (e: any) => {
+      // Acumula todos os blocos finais (o browser pode enviar vários com continuous:true)
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          const chunk = e.results[i][0].transcript;
+          fullTranscript += (fullTranscript ? " " : "") + chunk;
+        }
+      }
+      stopAfterSilence();
+    };
+
+    rec.onend = () => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      setListening(false);
+      if (fullTranscript.trim()) {
+        processVoiceCommand(fullTranscript.trim());
+      }
+    };
+
+    rec.onerror = (e: any) => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      // "no-speech" não é erro real — o onend vai disparar naturalmente
+      if (e.error === "no-speech") return;
       setListening(false);
       setVoiceError("Não foi possível capturar o áudio. Tente novamente.");
     };
-    rec.onresult = (e: any) => processVoiceCommand(e.results[0][0].transcript);
+
     rec.start();
   }
 
