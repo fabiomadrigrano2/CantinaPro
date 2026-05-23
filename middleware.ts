@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  if (pathname.startsWith('/portal')) {
+  if (pathname.startsWith('/portal') || pathname.startsWith('/auth/')) {
     return NextResponse.next()
   }
 
