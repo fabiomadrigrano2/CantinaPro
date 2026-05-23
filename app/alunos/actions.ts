@@ -2,6 +2,9 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import type { Database } from "@/types/database.types";
+
+type ContaTipo = Database["public"]["Enums"]["conta_tipo"];
 
 const CANTINA_ID_TEMP = "c7301d8b-890b-4775-986e-bb88979326f3";
 
@@ -33,7 +36,7 @@ export async function createAluno(data: {
     .insert({
       cantina_id,
       aluno_id: aluno.id,
-      tipo:  data.tipo_conta,
+      tipo:  data.tipo_conta as ContaTipo,
       saldo: data.saldo_inicial,
     });
 

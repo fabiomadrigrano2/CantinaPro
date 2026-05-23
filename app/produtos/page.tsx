@@ -21,7 +21,7 @@ export default async function ProdutosPage() {
           Gerencie o cardápio e os estoques da cantina
         </p>
       </div>
-      <ProdutosList initialProdutos={produtos ?? []} />
+      <ProdutosList initialProdutos={(produtos as any) ?? []} />
     </AppLayout>
   );
 }

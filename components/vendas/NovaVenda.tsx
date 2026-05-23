@@ -349,7 +349,7 @@ export default function NovaVenda() {
         .slice()
         .sort((a: any, b: any) => (rankMap[b.id] ?? 0) - (rankMap[a.id] ?? 0));
 
-      setProdutos(sorted);
+      setProdutos(sorted as Produto[]);
       setLoadingData(false);
     }
 
