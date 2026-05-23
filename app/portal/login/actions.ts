@@ -46,8 +46,8 @@ export async function sendMagicLink(
   });
 
   if (otpError) {
-    console.error("[sendMagicLink] erro ao enviar OTP:", otpError.message);
-    return { ok: false, error: "Erro ao enviar o link. Tente novamente em instantes." };
+    console.error("[sendMagicLink] erro ao enviar OTP:", otpError.name, otpError.message, JSON.stringify(otpError));
+    return { ok: false, error: `OTP error: ${otpError.message}` };
   }
 
   return { ok: true };
