@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
@@ -35,8 +36,13 @@ export async function sendMagicLink(
     };
   }
 
-  // Envia o magic link — cria o usuário no Supabase Auth se ainda não existir
-  const { error: otpError } = await admin.auth.signInWithOtp({
+  // Envia o magic link usando anon key — service role não dispara e-mail de auth
+  const anonClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+
+  const { error: otpError } = await anonClient.auth.signInWithOtp({
     email: emailNorm,
     options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
   });
