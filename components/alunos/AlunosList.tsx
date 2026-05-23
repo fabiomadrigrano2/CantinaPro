@@ -21,6 +21,13 @@ type AlunoComConta = {
   email_responsavel: string | null;
 };
 
+type Responsavel = {
+  id: string;
+  nome: string;
+  email: string | null;
+  parentesco: string | null;
+};
+
 // ── constantes ────────────────────────────────────────────────────────────────
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
@@ -75,6 +82,10 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0",
     telefone_responsavel: "", email_responsavel: "",
   });
+  const [responsaveis,   setResponsaveis]   = useState<Responsavel[]>([]);
+  const [respForm,       setRespForm]       = useState({ nome: "", email: "", parentesco: "responsavel" });
+  const [savingResp,     setSavingResp]     = useState(false);
+  const [respError,      setRespError]      = useState<string | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -117,6 +128,9 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
   function openModal() {
     setEditingAluno(null);
     setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", telefone_responsavel: "", email_responsavel: "" });
+    setResponsaveis([]);
+    setRespForm({ nome: "", email: "", parentesco: "responsavel" });
+    setRespError(null);
     setFormError(null);
     setShowModal(true);
   }
@@ -134,8 +148,32 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       telefone_responsavel: aluno.telefone_responsavel ?? "",
       email_responsavel:    aluno.email_responsavel    ?? "",
     });
+    setResponsaveis([]);
+    setRespForm({ nome: "", email: "", parentesco: "responsavel" });
+    setRespError(null);
     setFormError(null);
     setShowModal(true);
+    loadResponsaveis(aluno.id);
+  }
+
+  async function loadResponsaveis(alunoId: string) {
+    const supabase = createClient();
+    const { data } = await supabase
+      .from("aluno_responsavel")
+      .select("parentesco, responsaveis(id, nome, email)")
+      .eq("aluno_id", alunoId);
+    if (data) {
+      setResponsaveis(
+        data
+          .map((d: any) => ({
+            id:         d.responsaveis?.id   ?? "",
+            nome:       d.responsaveis?.nome ?? "",
+            email:      d.responsaveis?.email ?? null,
+            parentesco: d.parentesco ?? null,
+          }))
+          .filter((r) => r.id) as Responsavel[]
+      );
+    }
   }
 
   function closeModal() { setShowModal(false); }
@@ -224,6 +262,45 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  async function handleAddResponsavel() {
+    if (!respForm.nome.trim()) { setRespError("Informe o nome do responsável."); return; }
+    setSavingResp(true);
+    setRespError(null);
+    const supabase = createClient();
+
+    if (editingAluno) {
+      const { data: saved, error } = await supabase
+        .from("responsaveis")
+        .insert({ cantina_id: CANTINA_ID, nome: respForm.nome.trim(), email: respForm.email.trim() || null })
+        .select("id, nome, email")
+        .single();
+      if (error) { setSavingResp(false); setRespError(error.message); return; }
+      await supabase.from("aluno_responsavel").insert({ aluno_id: editingAluno.id, responsavel_id: saved.id, parentesco: respForm.parentesco || null });
+      setResponsaveis((prev) => [...prev, { ...saved, parentesco: respForm.parentesco || null }]);
+    } else {
+      setResponsaveis((prev) => [...prev, {
+        id: `tmp-${Date.now()}`,
+        nome: respForm.nome.trim(),
+        email: respForm.email.trim() || null,
+        parentesco: respForm.parentesco || null,
+      }]);
+    }
+
+    setRespForm({ nome: "", email: "", parentesco: "responsavel" });
+    setSavingResp(false);
+  }
+
+  async function handleRemoveResponsavel(resp: Responsavel) {
+    if (editingAluno && !resp.id.startsWith("tmp-")) {
+      const supabase = createClient();
+      await supabase.from("aluno_responsavel")
+        .delete()
+        .eq("aluno_id", editingAluno.id)
+        .eq("responsavel_id", resp.id);
+    }
+    setResponsaveis((prev) => prev.filter((r) => r.id !== resp.id));
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -275,6 +352,18 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
 
       // sync contas (best-effort)
       await supabase.from("contas").insert({ cantina_id: CANTINA_ID, aluno_id: aluno.id, saldo: parseFloat(form.saldo_inicial) || 0 });
+
+      // save pending guardians
+      for (const resp of responsaveis) {
+        const { data: savedResp } = await supabase
+          .from("responsaveis")
+          .insert({ cantina_id: CANTINA_ID, nome: resp.nome, email: resp.email })
+          .select("id")
+          .single();
+        if (savedResp) {
+          await supabase.from("aluno_responsavel").insert({ aluno_id: aluno.id, responsavel_id: savedResp.id, parentesco: resp.parentesco });
+        }
+      }
 
       setSaving(false);
     }
@@ -541,10 +630,10 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           onClick={closeModal}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border shrink-0">
               <h3 className="font-semibold text-white">
                 {editingAluno ? "Editar Aluno" : "Novo Aluno"}
               </h3>
@@ -556,7 +645,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="px-6 py-5 space-y-4">
+            <form onSubmit={handleSave} className="px-6 py-5 space-y-4 overflow-y-auto">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1.5">
                   Nome <span className="text-red-400">*</span>
@@ -596,18 +685,80 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                  E-mail do responsável (portal)
-                </label>
-                <input
-                  type="email"
-                  value={form.email_responsavel}
-                  onChange={(e) => set("email_responsavel", e.target.value)}
-                  className={inputCls}
-                  placeholder="responsavel@email.com"
-                />
-                <p className="mt-1 text-xs text-gray-600">Usado para acesso ao Portal do Responsável</p>
+              {/* ── Responsáveis ── */}
+              <div className="space-y-3 pt-2 border-t border-cp-border">
+                <p className="text-sm font-medium text-gray-300">Responsáveis</p>
+
+                {responsaveis.length > 0 && (
+                  <div className="space-y-2">
+                    {responsaveis.map((resp) => (
+                      <div
+                        key={resp.id}
+                        className="flex items-center gap-2 rounded-lg bg-cp-elevated border border-cp-border px-3 py-2.5"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-white font-medium truncate">{resp.nome}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {resp.parentesco && (
+                              <span className="text-xs text-gray-500 capitalize">{resp.parentesco}</span>
+                            )}
+                            {resp.email && (
+                              <span className="text-xs text-gray-600 truncate">{resp.email}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveResponsavel(resp)}
+                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2 rounded-xl bg-cp-elevated/50 border border-cp-border/60 px-4 py-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    {responsaveis.length === 0 ? "Adicionar responsável" : "Adicionar outro"}
+                  </p>
+                  <input
+                    type="text"
+                    placeholder="Nome completo"
+                    value={respForm.nome}
+                    onChange={(e) => setRespForm((f) => ({ ...f, nome: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <input
+                    type="email"
+                    placeholder="E-mail (acesso ao portal)"
+                    value={respForm.email}
+                    onChange={(e) => setRespForm((f) => ({ ...f, email: e.target.value }))}
+                    className={inputCls}
+                  />
+                  <select
+                    value={respForm.parentesco}
+                    onChange={(e) => setRespForm((f) => ({ ...f, parentesco: e.target.value }))}
+                    className={inputCls}
+                  >
+                    <option value="pai">Pai</option>
+                    <option value="mae">Mãe</option>
+                    <option value="avo">Avô</option>
+                    <option value="avo_f">Avó</option>
+                    <option value="tio">Tio / Tia</option>
+                    <option value="responsavel">Responsável</option>
+                  </select>
+                  {respError && <p className="text-xs text-red-400">{respError}</p>}
+                  <button
+                    type="button"
+                    onClick={handleAddResponsavel}
+                    disabled={savingResp || !respForm.nome.trim()}
+                    className="w-full py-2 px-4 bg-cp-elevated border border-cp-border hover:border-orange-500/40 hover:text-orange-400 disabled:opacity-40 text-gray-300 text-sm font-medium rounded-lg transition"
+                  >
+                    {savingResp ? "Adicionando..." : "+ Adicionar responsável"}
+                  </button>
+                </div>
               </div>
 
               <div>
