@@ -396,10 +396,10 @@ export default function NovaVenda() {
           .eq("disponivel", true)
           .order("nome"),
         supabase
-          .from("itens_pedido")
-          .select("produto_id, quantidade")
+          .from("pedidos")
+          .select("itens_pedido(produto_id, quantidade)")
           .eq("cantina_id", CANTINA_ID)
-          .limit(2000),
+          .limit(500),
       ]);
 
       setAlunos(
@@ -414,9 +414,11 @@ export default function NovaVenda() {
       );
 
       const rankMap: Record<string, number> = {};
-      for (const item of (popularityData ?? []) as any[]) {
-        rankMap[item.produto_id] =
-          (rankMap[item.produto_id] ?? 0) + (item.quantidade ?? 0);
+      for (const pedido of (popularityData ?? []) as any[]) {
+        for (const item of pedido.itens_pedido ?? []) {
+          rankMap[item.produto_id] =
+            (rankMap[item.produto_id] ?? 0) + (item.quantidade ?? 0);
+        }
       }
       const sorted = (produtosData ?? [])
         .slice()
