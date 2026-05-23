@@ -11,46 +11,59 @@ export async function sendMagicLink(
   email: string,
   redirectTo: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const admin     = createAdminClient();
-  const emailNorm = email.toLowerCase().trim();
+  try {
+    console.log("[sendMagicLink] iniciando para:", email, "redirectTo:", redirectTo);
 
-  const { data: responsavel, error: dbError } = await admin
-    .from("responsaveis")
-    .select("id")
-    .ilike("email", emailNorm)
-    .eq("cantina_id", CANTINA_ID)
-    .limit(1)
-    .maybeSingle();
+    const admin     = createAdminClient();
+    const emailNorm = email.toLowerCase().trim();
 
-  if (dbError) {
-    console.error("[sendMagicLink] erro ao consultar responsaveis:", dbError.message);
-    return { ok: false, error: "Erro ao verificar o e-mail. Tente novamente." };
+    const { data: responsavel, error: dbError } = await admin
+      .from("responsaveis")
+      .select("id")
+      .ilike("email", emailNorm)
+      .eq("cantina_id", CANTINA_ID)
+      .limit(1)
+      .maybeSingle();
+
+    if (dbError) {
+      console.error("[sendMagicLink] dbError:", dbError.code, dbError.message, dbError.details);
+      return { ok: false, error: `DB error: ${dbError.message}` };
+    }
+
+    console.log("[sendMagicLink] responsavel encontrado:", !!responsavel);
+
+    if (!responsavel) {
+      return {
+        ok: false,
+        error: "E-mail não cadastrado como responsável nesta cantina. Entre em contato com a cantina.",
+      };
+    }
+
+    // Anon key client — service role does not send auth emails
+    const anonClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!.trim(),
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!.trim(),
+    );
+
+    console.log("[sendMagicLink] chamando signInWithOtp...");
+
+    const { error: otpError } = await anonClient.auth.signInWithOtp({
+      email: emailNorm,
+      options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
+    });
+
+    if (otpError) {
+      console.error("[sendMagicLink] otpError:", otpError.name, otpError.status, otpError.message, JSON.stringify(otpError));
+      return { ok: false, error: `OTP error (${otpError.status}): ${otpError.message}` };
+    }
+
+    console.log("[sendMagicLink] OTP enviado com sucesso");
+    return { ok: true };
+
+  } catch (e: any) {
+    console.error("[sendMagicLink] exceção não tratada:", e?.message ?? e);
+    return { ok: false, error: `Exceção: ${e?.message ?? String(e)}` };
   }
-
-  if (!responsavel) {
-    return {
-      ok: false,
-      error: "E-mail não cadastrado como responsável nesta cantina. Entre em contato com a cantina.",
-    };
-  }
-
-  // Anon key client — service role does not send auth emails
-  const anonClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  );
-
-  const { error: otpError } = await anonClient.auth.signInWithOtp({
-    email: emailNorm,
-    options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
-  });
-
-  if (otpError) {
-    console.error("[sendMagicLink] erro ao enviar OTP:", otpError.name, otpError.message, JSON.stringify(otpError));
-    return { ok: false, error: `OTP error: ${otpError.message}` };
-  }
-
-  return { ok: true };
 }
 
 export async function checkResponsavel(): Promise<{ ok: boolean; error?: string }> {
