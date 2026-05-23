@@ -10,17 +10,23 @@ export async function sendMagicLink(
   email: string,
   redirectTo: string,
 ): Promise<{ ok: boolean; error?: string }> {
-  const admin = createAdminClient();
+  const admin     = createAdminClient();
   const emailNorm = email.toLowerCase().trim();
 
-  // Valida se o e-mail está cadastrado como responsável (usa admin para bypassar RLS)
-  const { data: aluno } = await admin
+  // Verifica se o e-mail está cadastrado como responsável (admin bypassa RLS)
+  // Usa ilike para comparação case-insensitive e maybeSingle para não lançar
+  // erro quando nenhuma linha é encontrada
+  const { data: aluno, error: dbError } = await admin
     .from("alunos")
     .select("id")
-    .eq("email_responsavel", emailNorm)
-    .eq("cantina_id", CANTINA_ID)
+    .ilike("email_responsavel", emailNorm)
     .limit(1)
-    .single();
+    .maybeSingle();
+
+  if (dbError) {
+    console.error("[sendMagicLink] erro ao consultar alunos:", dbError.message);
+    return { ok: false, error: "Erro ao verificar o e-mail. Tente novamente." };
+  }
 
   if (!aluno) {
     return {
@@ -29,14 +35,14 @@ export async function sendMagicLink(
     };
   }
 
-  // Envia o magic link criando o usuário no Auth se ainda não existir
-  const supabase = createClient();
-  const { error: otpError } = await supabase.auth.signInWithOtp({
+  // Envia o magic link — cria o usuário no Supabase Auth se ainda não existir
+  const { error: otpError } = await admin.auth.signInWithOtp({
     email: emailNorm,
     options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
   });
 
   if (otpError) {
+    console.error("[sendMagicLink] erro ao enviar OTP:", otpError.message);
     return { ok: false, error: "Erro ao enviar o link. Tente novamente em instantes." };
   }
 
