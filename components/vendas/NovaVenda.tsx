@@ -533,6 +533,7 @@ export default function NovaVenda() {
   // ── Voz ───────────────────────────────────────────────────────────────────
 
   function processVoiceCommand(transcript: string) {
+    console.log("[voz] transcript completo:", JSON.stringify(transcript));
     setVoiceError(null);
 
     const split = splitCommand(transcript, alunos);
