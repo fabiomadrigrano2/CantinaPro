@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+type State = "loading" | "ready" | "error";
+
 export default function PortalAuthPage() {
-  const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
+  const [state, setState] = useState<State>("loading");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const rawHash = window.location.hash;
@@ -19,7 +20,8 @@ export default function PortalAuthPage() {
       const desc = params.get("error_description") ?? "Link inválido ou expirado.";
       const msg  = desc.replace(/\+/g, " ");
       console.error("[portal/auth] erro no hash:", errorCode, msg);
-      setError(msg);
+      setErrorMsg(msg);
+      setState("error");
       return;
     }
 
@@ -31,7 +33,8 @@ export default function PortalAuthPage() {
 
     if (!accessToken || !refreshToken) {
       console.error("[portal/auth] tokens ausentes — hash não contém access_token/refresh_token");
-      setError("Link inválido ou expirado. Solicite um novo link de acesso.");
+      setErrorMsg("Link inválido ou expirado. Solicite um novo link de acesso.");
+      setState("error");
       return;
     }
 
@@ -46,20 +49,22 @@ export default function PortalAuthPage() {
         });
 
         if (sessionError) {
-          setError("Erro ao iniciar sessão. Solicite um novo link de acesso.");
+          setErrorMsg("Erro ao iniciar sessão. Solicite um novo link de acesso.");
+          setState("error");
           return;
         }
-        console.log("[portal/auth] sessão OK — redirecionando para /portal/dashboard");
-        window.location.href = "/portal/dashboard";
-      });
-  }, [router]);
 
-  if (error) {
+        console.log("[portal/auth] sessão OK — aguardando clique do usuário");
+        setState("ready");
+      });
+  }, []);
+
+  if (state === "error") {
     return (
       <div className="min-h-screen bg-cp-bg flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm">
           <div className="text-4xl">⚠️</div>
-          <p className="text-sm text-red-400">{error}</p>
+          <p className="text-sm text-red-400">{errorMsg}</p>
           <a
             href="/portal/login"
             className="inline-block text-sm text-blue-400 hover:text-blue-300 underline transition"
@@ -71,11 +76,35 @@ export default function PortalAuthPage() {
     );
   }
 
+  if (state === "ready") {
+    return (
+      <div className="min-h-screen bg-cp-bg flex items-center justify-center p-4">
+        <div className="text-center space-y-6 max-w-sm">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/15 border border-emerald-500/30">
+            <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <div className="space-y-1">
+            <p className="text-base font-semibold text-white">Identidade confirmada</p>
+            <p className="text-sm text-gray-400">Clique para acessar o portal do responsável.</p>
+          </div>
+          <a
+            href="/portal/dashboard"
+            className="inline-block w-full py-2.5 px-4 bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold rounded-xl transition text-center"
+          >
+            Entrar no portal
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-cp-bg flex items-center justify-center">
       <div className="flex flex-col items-center gap-3">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-gray-400">Entrando no portal...</p>
+        <p className="text-sm text-gray-400">Verificando link...</p>
       </div>
     </div>
   );
