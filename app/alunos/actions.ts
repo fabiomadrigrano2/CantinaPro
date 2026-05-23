@@ -1,6 +1,6 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import type { Database } from "@/types/database.types";
 
@@ -12,9 +12,9 @@ export async function addResponsavel(
   alunoId: string,
   data: { nome: string; email: string | null; parentesco: string | null }
 ): Promise<{ id: string; nome: string; email: string | null; parentesco: string | null } | { error: string }> {
-  const admin = createAdminClient();
+  const supabase = createClient();
 
-  const { data: resp, error: respError } = await admin
+  const { data: resp, error: respError } = await supabase
     .from("responsaveis")
     .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
     .select("id, nome, email")
@@ -22,7 +22,7 @@ export async function addResponsavel(
 
   if (respError) return { error: respError.message };
 
-  const { error: linkError } = await admin
+  const { error: linkError } = await supabase
     .from("aluno_responsavel")
     .insert({ aluno_id: alunoId, responsavel_id: resp.id, parentesco: data.parentesco });
 
@@ -35,8 +35,8 @@ export async function removeResponsavel(
   alunoId: string,
   responsavelId: string
 ): Promise<{ error?: string }> {
-  const admin = createAdminClient();
-  const { error } = await admin
+  const supabase = createClient();
+  const { error } = await supabase
     .from("aluno_responsavel")
     .delete()
     .eq("aluno_id", alunoId)
@@ -50,7 +50,7 @@ export async function createAluno(data: {
   tipo_conta: string;
   saldo_inicial: number;
 }) {
-  const supabase = createAdminClient();
+  const supabase = createClient();
   const cantina_id = CANTINA_ID_TEMP;
 
   // Insere o aluno com turma como texto direto (sem FK para tabela turmas)
