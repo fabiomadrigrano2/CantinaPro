@@ -14,29 +14,27 @@ export async function sendMagicLink(
   const admin     = createAdminClient();
   const emailNorm = email.toLowerCase().trim();
 
-  // Verifica se o e-mail está cadastrado como responsável (admin bypassa RLS)
-  // Usa ilike para comparação case-insensitive e maybeSingle para não lançar
-  // erro quando nenhuma linha é encontrada
-  const { data: aluno, error: dbError } = await admin
-    .from("alunos")
+  const { data: responsavel, error: dbError } = await admin
+    .from("responsaveis")
     .select("id")
-    .ilike("email_responsavel", emailNorm)
+    .ilike("email", emailNorm)
+    .eq("cantina_id", CANTINA_ID)
     .limit(1)
     .maybeSingle();
 
   if (dbError) {
-    console.error("[sendMagicLink] erro ao consultar alunos:", dbError.message);
+    console.error("[sendMagicLink] erro ao consultar responsaveis:", dbError.message);
     return { ok: false, error: "Erro ao verificar o e-mail. Tente novamente." };
   }
 
-  if (!aluno) {
+  if (!responsavel) {
     return {
       ok: false,
       error: "E-mail não cadastrado como responsável nesta cantina. Entre em contato com a cantina.",
     };
   }
 
-  // Envia o magic link usando anon key — service role não dispara e-mail de auth
+  // Anon key client — service role does not send auth emails
   const anonClient = createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -58,16 +56,16 @@ export async function sendMagicLink(
 export async function checkResponsavel(): Promise<{ ok: boolean; error?: string }> {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
-
   if (!user?.email) return { ok: false, error: "Não autenticado." };
 
-  const { data, error } = await supabase
-    .from("alunos")
-    .select("id, nome, turma, saldo")
-    .eq("email_responsavel", user.email)
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("responsaveis")
+    .select("id")
+    .ilike("email", user.email)
     .eq("cantina_id", CANTINA_ID)
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !data) {
     await supabase.auth.signOut();
@@ -85,12 +83,33 @@ export async function atualizarLimiteDiario(
   if (!user?.email) return { ok: false, error: "Não autenticado." };
 
   const valor = Math.max(0, Math.min(50, Math.round(limite)));
+  const admin = createAdminClient();
 
-  const { error } = await supabase
-    .from("alunos")
-    .update({ limite_diario: valor })
-    .eq("email_responsavel", user.email)
-    .eq("cantina_id", CANTINA_ID);
+  const { data: responsavel } = await admin
+    .from("responsaveis")
+    .select("id")
+    .ilike("email", user.email)
+    .eq("cantina_id", CANTINA_ID)
+    .limit(1)
+    .maybeSingle();
+
+  if (!responsavel) return { ok: false, error: "Responsável não encontrado." };
+
+  const { data: link } = await admin
+    .from("aluno_responsavel")
+    .select("aluno_id")
+    .eq("responsavel_id", responsavel.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (!link) return { ok: false, error: "Aluno não encontrado." };
+
+  const { error } = await admin
+    .from("limites_aluno")
+    .upsert(
+      { aluno_id: link.aluno_id, cantina_id: CANTINA_ID, limite_valor_diario: valor },
+      { onConflict: "aluno_id" },
+    );
 
   if (error) return { ok: false, error: "Erro ao salvar o limite. Tente novamente." };
   return { ok: true };

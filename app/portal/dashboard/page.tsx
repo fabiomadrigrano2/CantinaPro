@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import PortalDashboard from "@/components/portal/PortalDashboard";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
@@ -55,24 +56,65 @@ export default async function PortalDashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/portal/login");
 
-  const { data: aluno } = await supabase
-    .from("alunos")
-    .select("id, nome, turma, saldo, tipo_conta, limite_diario")
-    .eq("email_responsavel", user.email!)
+  const admin = createAdminClient();
+
+  // Find responsavel by email (admin bypasses RLS)
+  const { data: responsavel } = await admin
+    .from("responsaveis")
+    .select("id")
+    .ilike("email", user.email!)
     .eq("cantina_id", CANTINA_ID)
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (!aluno) redirect("/portal/login");
+  if (!responsavel) redirect("/portal/login");
+
+  // Find first linked aluno with turma name
+  const { data: link } = await admin
+    .from("aluno_responsavel")
+    .select("aluno_id, alunos(id, nome, turma_id, turmas(nome))")
+    .eq("responsavel_id", responsavel.id)
+    .limit(1)
+    .maybeSingle();
+
+  const alunoRaw = (link as any)?.alunos;
+  if (!alunoRaw) redirect("/portal/login");
+
+  const alunoId: string   = alunoRaw.id;
+  const alunoNome: string = alunoRaw.nome;
+  const turmaNome: string | null = alunoRaw.turmas?.nome ?? null;
+
+  // Get financial account
+  const { data: conta } = await admin
+    .from("contas")
+    .select("saldo, tipo")
+    .eq("aluno_id", alunoId)
+    .maybeSingle();
+
+  // Get daily limit
+  const { data: limiteData } = await admin
+    .from("limites_aluno")
+    .select("limite_valor_diario")
+    .eq("aluno_id", alunoId)
+    .maybeSingle();
+
+  const aluno: AlunoPortal = {
+    id:            alunoId,
+    nome:          alunoNome,
+    turma:         turmaNome,
+    saldo:         conta?.saldo ?? 0,
+    tipo_conta:    conta?.tipo ?? "credito",
+    limite_diario: limiteData?.limite_valor_diario ?? 0,
+  };
 
   const today    = todayBR();
   const start30  = new Date(Date.UTC(today.year, today.month - 1, today.day - 29, 3, 0, 0));
   const endToday = new Date(Date.UTC(today.year, today.month - 1, today.day + 1, 3, 0, 0));
 
-  const { data: pedidos } = await supabase
+  const { data: pedidos } = await admin
     .from("pedidos")
     .select("id, total, criado_em, itens_pedido(nome_produto, quantidade, preco_unitario, produtos(nome))")
-    .eq("aluno_id", aluno.id)
+    .eq("aluno_id", alunoId)
     .eq("status", "confirmado")
     .gte("criado_em", start30.toISOString())
     .lt("criado_em", endToday.toISOString())
@@ -89,7 +131,7 @@ export default async function PortalDashboardPage() {
 
   return (
     <PortalDashboard
-      aluno={aluno as AlunoPortal}
+      aluno={aluno}
       pedidos={pedidosList}
       totalMes={totalMes}
       weeklyData={weeklyData}

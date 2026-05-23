@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Database } from "@/types/database.types";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
@@ -39,26 +40,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/portal/login?error=link_expirado`);
   }
 
-  // Verifica se o e-mail está cadastrado como responsável nesta cantina
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user?.email) {
     return NextResponse.redirect(`${origin}/portal/login?error=nao_autorizado`);
   }
 
-  const { data: aluno } = await supabase
-    .from("alunos")
-    .select("id")
-    .eq("email_responsavel", user.email)
+  // Admin client bypasses RLS for verification
+  const admin = createAdminClient();
+
+  const { data: responsavel } = await admin
+    .from("responsaveis")
+    .select("id, user_id")
+    .ilike("email", user.email)
     .eq("cantina_id", CANTINA_ID)
     .limit(1)
-    .single();
+    .maybeSingle();
 
-  if (!aluno) {
+  if (!responsavel) {
     await supabase.auth.signOut();
     return NextResponse.redirect(
       `${origin}/portal/login?error=email_nao_cadastrado`
     );
+  }
+
+  // Link auth user to responsavel on first login
+  if (!responsavel.user_id) {
+    await admin
+      .from("responsaveis")
+      .update({ user_id: user.id })
+      .eq("id", responsavel.id);
   }
 
   return response;
