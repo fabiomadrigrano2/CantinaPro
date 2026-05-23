@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
@@ -38,12 +39,16 @@ export async function sendMagicLink(
       };
     }
 
-    // createClient usa anon key via @supabase/ssr com cookie storage (PKCE funciona corretamente)
-    const supabase = createClient();
+    // Implicit flow: tokens chegam no hash da URL (#access_token=...), sem PKCE
+    const anonClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { flowType: "implicit" } },
+    );
 
-    console.log("[sendMagicLink] chamando signInWithOtp...");
+    console.log("[sendMagicLink] chamando signInWithOtp (implicit)...");
 
-    const { error: otpError } = await supabase.auth.signInWithOtp({
+    const { error: otpError } = await anonClient.auth.signInWithOtp({
       email: emailNorm,
       options: { shouldCreateUser: true, emailRedirectTo: redirectTo },
     });
