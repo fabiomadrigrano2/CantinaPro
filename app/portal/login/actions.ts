@@ -51,7 +51,7 @@ export async function sendMagicLink(
       { auth: { flowType: "implicit" } },
     );
 
-    console.log("[sendMagicLink] chamando signInWithOtp (implicit)...");
+    console.log("[sendMagicLink] chamando signInWithOtp — emailRedirectTo:", emailRedirectTo);
 
     const { error: otpError } = await anonClient.auth.signInWithOtp({
       email: emailNorm,
