@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Step = "loading" | "form" | "success" | "error";
 
 export default function PortalResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-cp-bg flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <ResetPasswordContent />
+    </Suspense>
+  );
+}
+
+function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const [step, setStep]         = useState<Step>("loading");
   const [password, setPassword] = useState("");
