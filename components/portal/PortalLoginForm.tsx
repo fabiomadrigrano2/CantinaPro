@@ -58,7 +58,7 @@ export default function PortalLoginForm() {
         <p className="text-sm text-gray-400 leading-relaxed">
           Se o e-mail{" "}
           <span className="text-white font-medium">{email}</span>{" "}
-          estiver cadastrado, você receberá sua senha temporária em instantes.
+          estiver cadastrado, você receberá um link para definir sua senha.
         </p>
         <button
           onClick={() => {
@@ -80,7 +80,7 @@ export default function PortalLoginForm() {
         <div>
           <h2 className="text-base font-semibold text-white mb-1">Primeiro acesso ou esqueci a senha</h2>
           <p className="text-xs text-gray-400 mb-4">
-            Informe seu e-mail e enviaremos uma senha temporária.
+            Informe seu e-mail e enviaremos um link para você definir sua senha.
           </p>
           <label htmlFor="email-solicitar" className="block text-sm font-medium text-gray-300 mb-1.5">
             E-mail do responsável
@@ -116,7 +116,7 @@ export default function PortalLoginForm() {
               Enviando...
             </>
           ) : (
-            "Enviar senha temporária"
+            "Enviar link de acesso"
           )}
         </button>
 

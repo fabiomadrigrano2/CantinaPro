@@ -2,16 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient as createAnonClient } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-
-function gerarSenha(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  return Array.from({ length: 10 }, () =>
-    chars[Math.floor(Math.random() * chars.length)]
-  ).join("");
-}
 
 export async function signInPortal(
   email: string,
@@ -62,80 +57,28 @@ export async function solicitarSenhaTemporaria(
   // Always return ok:true to prevent email enumeration
   if (!responsavel) return { ok: true };
 
-  const senha = gerarSenha();
+  // Garante que o usuário existe no auth (cria se for primeiro acesso)
+  // 422 = já existe — ignoramos e seguimos para enviar o reset
+  await admin.auth.admin.createUser({ email: emailNorm, email_confirm: true });
 
-  // Try to create; on 422 (user already exists) find and update instead
-  const { data: created, error: createErr } = await admin.auth.admin.createUser({
-    email: emailNorm,
-    password: senha,
-    email_confirm: true,
-  });
+  // Envia o e-mail de redefinição de senha via SMTP do Supabase
+  const h = headers();
+  const host  = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  const redirectTo = `${proto}://${host}/portal/reset-password`;
 
-  if (!created?.user) {
-    console.error("[solicitarSenha] createUser falhou:", createErr?.status, createErr?.message);
+  const anon = createAnonClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
 
-    // Find existing auth user by email and update the password
-    const { data: list, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
-    if (listErr) {
-      console.error("[solicitarSenha] listUsers falhou:", listErr.message);
-      return { ok: false, error: "Erro interno. Tente novamente." };
-    }
-
-    const existing = list?.users.find((u) => u.email?.toLowerCase() === emailNorm);
-    if (!existing) {
-      console.error("[solicitarSenha] usuário não encontrado no auth após createUser falhar");
-      return { ok: false, error: "Erro interno. Tente novamente." };
-    }
-
-    const { error: updateErr } = await admin.auth.admin.updateUserById(existing.id, {
-      password: senha,
-    });
-    if (updateErr) {
-      console.error("[solicitarSenha] updateUserById falhou:", updateErr.status, updateErr.message);
-      return { ok: false, error: "Erro interno. Tente novamente." };
-    }
+  const { error } = await anon.auth.resetPasswordForEmail(emailNorm, { redirectTo });
+  if (error) {
+    console.error("[solicitarSenha] resetPasswordForEmail falhou:", error.message);
+    return { ok: false, error: "Erro ao enviar e-mail. Tente novamente." };
   }
 
-  await enviarSenha(emailNorm, senha);
   return { ok: true };
-}
-
-async function enviarSenha(email: string, senha: string) {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey || apiKey.startsWith("re_SUBSTITUA")) {
-    throw new Error("RESEND_API_KEY não configurada");
-  }
-
-  const { Resend } = await import("resend");
-  const resend = new Resend(apiKey);
-  const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/portal/login`;
-
-  const { error: sendError } = await resend.emails.send({
-    from: "CantinaPro <onboarding@resend.dev>",
-    to: email,
-    subject: "Sua senha temporária — Portal do Responsável",
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:32px 24px;background:#ffffff">
-        <h2 style="color:#1e293b;margin:0 0 8px;font-size:20px">Portal do Responsável</h2>
-        <p style="color:#475569;margin:0 0 24px;font-size:15px;line-height:1.5">
-          Sua senha temporária de acesso ao portal é:
-        </p>
-        <div style="background:#f1f5f9;border-radius:12px;padding:24px;text-align:center;margin-bottom:24px">
-          <span style="font-size:30px;font-weight:700;letter-spacing:6px;color:#1e293b;font-family:monospace">${senha}</span>
-        </div>
-        <a href="${loginUrl}" style="display:block;background:#3b82f6;color:#ffffff;text-align:center;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;margin-bottom:24px">
-          Entrar no portal
-        </a>
-        <p style="color:#94a3b8;font-size:13px;margin:0;line-height:1.5">
-          Se você não solicitou esta senha, ignore este e-mail.
-        </p>
-      </div>
-    `,
-  });
-
-  if (sendError) {
-    throw new Error(`Resend error: ${sendError.message}`);
-  }
 }
 
 export async function atualizarLimiteDiario(

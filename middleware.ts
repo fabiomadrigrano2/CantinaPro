@@ -9,6 +9,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname === '/login' ||
     pathname === '/portal/login' ||
+    pathname === '/portal/reset-password' ||
     pathname.startsWith('/auth/')
   ) {
     return NextResponse.next()
