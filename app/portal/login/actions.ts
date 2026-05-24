@@ -84,11 +84,16 @@ export async function solicitarSenhaTemporaria(
 }
 
 async function enviarSenha(email: string, senha: string) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || apiKey.startsWith("re_SUBSTITUA")) {
+    throw new Error("RESEND_API_KEY não configurada");
+  }
+
   const { Resend } = await import("resend");
-  const resend = new Resend(process.env.RESEND_API_KEY);
+  const resend = new Resend(apiKey);
   const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/portal/login`;
 
-  await resend.emails.send({
+  const { error: sendError } = await resend.emails.send({
     from: "CantinaPro <noreply@cantina.pro>",
     to: email,
     subject: "Sua senha temporária — Portal do Responsável",
@@ -110,6 +115,10 @@ async function enviarSenha(email: string, senha: string) {
       </div>
     `,
   });
+
+  if (sendError) {
+    throw new Error(`Resend error: ${sendError.message}`);
+  }
 }
 
 export async function atualizarLimiteDiario(

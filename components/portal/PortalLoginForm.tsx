@@ -34,16 +34,18 @@ export default function PortalLoginForm() {
     setLoading(true);
     setError(null);
 
-    const result = await solicitarSenhaTemporaria(email);
-
-    setLoading(false);
-
-    if (!result.ok) {
-      setError(result.error ?? "Ocorreu um erro. Tente novamente.");
-      return;
+    try {
+      const result = await solicitarSenhaTemporaria(email);
+      setLoading(false);
+      if (!result.ok) {
+        setError(result.error ?? "Ocorreu um erro. Tente novamente.");
+        return;
+      }
+      setStep("enviado");
+    } catch {
+      setLoading(false);
+      setError("Erro ao enviar o e-mail. Tente novamente em instantes.");
     }
-
-    setStep("enviado");
   }
 
   if (step === "enviado") {
