@@ -53,13 +53,14 @@ function buildWeeklyData(
 
 export default async function PortalDashboardPage() {
   const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  console.log("[dashboard] getUser:", user?.email ?? null, "error:", userError?.message ?? null);
   if (!user) redirect("/portal/login");
 
   const admin = createAdminClient();
 
   // Find responsavel by email (admin bypasses RLS)
-  const { data: responsavel } = await admin
+  const { data: responsavel, error: respError } = await admin
     .from("responsaveis")
     .select("id")
     .ilike("email", user.email!)
@@ -67,6 +68,7 @@ export default async function PortalDashboardPage() {
     .limit(1)
     .maybeSingle();
 
+  console.log("[dashboard] responsavel:", responsavel?.id ?? null, "error:", respError?.message ?? null);
   if (!responsavel) redirect("/portal/login");
 
   // Find first linked aluno — includes saldo/tipo_conta/limite_diario stored on alunos
