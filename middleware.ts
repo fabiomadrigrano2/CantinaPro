@@ -5,13 +5,8 @@ import type { NextRequest } from 'next/server'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Public routes and auth callback pass through without session check
-  if (
-    pathname === '/login' ||
-    pathname === '/portal/login' ||
-    pathname === '/portal/reset-password' ||
-    pathname.startsWith('/auth/')
-  ) {
+  // Auth callbacks never need a session check
+  if (pathname.startsWith('/auth/')) {
     return NextResponse.next()
   }
 
@@ -36,6 +31,24 @@ export async function middleware(request: NextRequest) {
   // getUser() validates the JWT and refreshes the session when needed
   const { data: { user } } = await supabase.auth.getUser()
 
+  // Portal login/reset: pass through for unauthenticated users;
+  // redirect authenticated users straight to the portal dashboard
+  if (pathname === '/portal/login' || pathname === '/portal/reset-password') {
+    if (user && pathname === '/portal/login') {
+      return NextResponse.redirect(new URL('/portal/dashboard', request.url))
+    }
+    return NextResponse.next()
+  }
+
+  // Admin login: redirect authenticated users to admin dashboard
+  if (pathname === '/login') {
+    if (user) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return NextResponse.next()
+  }
+
+  // Portal protected routes
   if (pathname.startsWith('/portal')) {
     if (!user) {
       return NextResponse.redirect(new URL('/portal/login', request.url))
