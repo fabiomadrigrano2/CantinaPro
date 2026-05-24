@@ -64,18 +64,35 @@ export async function solicitarSenhaTemporaria(
 
   const senha = gerarSenha();
 
-  // Try to create user — if already exists, find and update password
+  // Try to create; on 422 (user already exists) find and update instead
   const { data: created, error: createErr } = await admin.auth.admin.createUser({
     email: emailNorm,
     password: senha,
     email_confirm: true,
   });
 
-  if (!created?.user && createErr) {
-    const { data: list } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  if (!created?.user) {
+    console.error("[solicitarSenha] createUser falhou:", createErr?.status, createErr?.message);
+
+    // Find existing auth user by email and update the password
+    const { data: list, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
+    if (listErr) {
+      console.error("[solicitarSenha] listUsers falhou:", listErr.message);
+      return { ok: false, error: "Erro interno. Tente novamente." };
+    }
+
     const existing = list?.users.find((u) => u.email?.toLowerCase() === emailNorm);
-    if (existing) {
-      await admin.auth.admin.updateUserById(existing.id, { password: senha });
+    if (!existing) {
+      console.error("[solicitarSenha] usuário não encontrado no auth após createUser falhar");
+      return { ok: false, error: "Erro interno. Tente novamente." };
+    }
+
+    const { error: updateErr } = await admin.auth.admin.updateUserById(existing.id, {
+      password: senha,
+    });
+    if (updateErr) {
+      console.error("[solicitarSenha] updateUserById falhou:", updateErr.status, updateErr.message);
+      return { ok: false, error: "Erro interno. Tente novamente." };
     }
   }
 
@@ -94,7 +111,7 @@ async function enviarSenha(email: string, senha: string) {
   const loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/portal/login`;
 
   const { error: sendError } = await resend.emails.send({
-    from: "CantinaPro <noreply@cantina.pro>",
+    from: "CantinaPro <onboarding@resend.dev>",
     to: email,
     subject: "Sua senha temporária — Portal do Responsável",
     html: `
