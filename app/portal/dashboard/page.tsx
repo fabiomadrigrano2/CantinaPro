@@ -80,6 +80,7 @@ export default async function PortalDashboardPage() {
     .maybeSingle();
 
   const alunoRaw = (link as any)?.alunos;
+  console.log("[dashboard] link aluno_responsavel:", link?.aluno_id ?? null, "alunoRaw:", alunoRaw?.id ?? null);
   if (!alunoRaw) redirect("/portal/login");
 
   const alunoId: string          = alunoRaw.id;
