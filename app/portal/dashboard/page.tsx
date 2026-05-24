@@ -71,37 +71,34 @@ export default async function PortalDashboardPage() {
   console.log("[dashboard] responsavel:", responsavel?.id ?? null, "error:", respError?.message ?? null);
   if (!responsavel) redirect("/portal/login");
 
-  // Find first linked aluno — includes saldo/tipo_conta/limite_diario stored on alunos
-  console.log("[dashboard] buscando aluno_responsavel com responsavel_id:", responsavel.id);
-
+  // Step 1: get aluno_id from aluno_responsavel (no join — avoids permission issues on alunos)
   const { data: link, error: linkError } = await admin
     .from("aluno_responsavel")
-    .select("aluno_id, alunos(id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome))")
+    .select("aluno_id")
     .eq("responsavel_id", responsavel.id)
     .limit(1)
     .maybeSingle();
 
-  // fallback: tenta buscar pelo user_id do Auth caso o vínculo use esse campo
-  let linkFinal = link;
-  if (!link && !linkError) {
-    console.log("[dashboard] sem resultado por responsavel.id, tentando por user_id do auth:", user.id);
-    const { data: linkByUserId, error: linkByUserIdError } = await admin
-      .from("aluno_responsavel")
-      .select("aluno_id, alunos(id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome))")
-      .eq("responsavel_id", user.id)
-      .limit(1)
-      .maybeSingle();
-    console.log("[dashboard] fallback user_id → aluno_id:", linkByUserId?.aluno_id ?? null, "error:", linkByUserIdError?.message ?? null);
-    linkFinal = linkByUserId;
+  console.log("[dashboard] link aluno_responsavel:", link?.aluno_id ?? null, "error:", linkError?.message ?? null);
+
+  const alunoId: string = link?.aluno_id ?? "";
+  if (!alunoId) {
+    console.log("[dashboard] sem aluno_id — redirect login");
+    redirect("/portal/login");
   }
 
-  const alunoRaw = (linkFinal as any)?.alunos;
-  console.log("[dashboard] link aluno_responsavel:", linkFinal?.aluno_id ?? null, "linkError:", linkError?.message ?? null, "alunoRaw:", alunoRaw?.id ?? null);
+  // Step 2: fetch aluno directly by id
+  const { data: alunoRaw, error: alunoError } = await admin
+    .from("alunos")
+    .select("id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome)")
+    .eq("id", alunoId)
+    .maybeSingle();
+
+  console.log("[dashboard] aluno:", alunoRaw?.id ?? null, "error:", alunoError?.message ?? null);
   if (!alunoRaw) redirect("/portal/login");
 
-  const alunoId: string          = alunoRaw.id;
   const alunoNome: string        = alunoRaw.nome;
-  const turmaNome: string | null = alunoRaw.turmas?.nome ?? null;
+  const turmaNome: string | null = (alunoRaw.turmas as any)?.nome ?? null;
 
   // contas table is the canonical ledger; alunos.saldo is the denormalized fallback
   const { data: conta } = await admin
