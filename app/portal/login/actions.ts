@@ -67,10 +67,14 @@ export async function solicitarSenhaTemporaria(
   const proto = h.get("x-forwarded-proto") ?? "http";
   const redirectTo = `${proto}://${host}/portal/reset-password`;
 
+  // implicit flow: tokens chegam no hash (#access_token=...) — mais simples sem PKCE
   const anon = createAnonClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { flowType: "implicit" } },
   );
+
+  console.log("[solicitarSenha] redirectTo:", redirectTo);
 
   const { error } = await anon.auth.resetPasswordForEmail(emailNorm, { redirectTo });
   if (error) {

@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 type Step = "loading" | "form" | "success" | "error";
@@ -19,7 +18,6 @@ export default function PortalResetPasswordPage() {
 }
 
 function ResetPasswordContent() {
-  const searchParams = useSearchParams();
   const [step, setStep]         = useState<Step>("loading");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm]   = useState("");
@@ -27,22 +25,32 @@ function ResetPasswordContent() {
   const [error, setError]       = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get("code");
-    if (!code) {
+    // Implicit flow: tokens chegam no hash — ex: #access_token=...&type=recovery
+    const hash = window.location.hash.slice(1);
+    const params = new URLSearchParams(hash);
+
+    const accessToken  = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    const type         = params.get("type");
+
+    console.log("[reset-password] type:", type, "access_token presente:", !!accessToken);
+
+    if (!accessToken || !refreshToken || type !== "recovery") {
       setStep("error");
       return;
     }
 
     const supabase = createClient();
-    supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-      if (error) {
-        console.error("[reset-password] exchangeCodeForSession:", error.message);
-        setStep("error");
-      } else {
-        setStep("form");
-      }
-    });
-  }, [searchParams]);
+    supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ error }) => {
+        if (error) {
+          console.error("[reset-password] setSession:", error.message);
+          setStep("error");
+        } else {
+          setStep("form");
+        }
+      });
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -86,7 +94,7 @@ function ResetPasswordContent() {
       <div className="min-h-screen bg-cp-bg flex items-center justify-center p-4">
         <div className="text-center space-y-4 max-w-sm">
           <div className="text-4xl">⚠️</div>
-          <p className="text-sm text-red-400">Link inválido ou expirado.</p>
+          <p className="text-sm text-red-400">Link inválido ou expirado. Solicite um novo link.</p>
           <a
             href="/portal/login"
             className="inline-block text-sm text-blue-400 hover:text-blue-300 underline transition"
