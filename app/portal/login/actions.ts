@@ -35,6 +35,7 @@ export async function verifyResponsavel(
 export async function solicitarSenhaTemporaria(
   email: string,
 ): Promise<{ ok: boolean; error?: string }> {
+  console.log("[solicitarSenha] email recebido:", email);
   const emailNorm = email.toLowerCase().trim();
   const admin = createAdminClient();
 
