@@ -8,9 +8,11 @@ import { redirect } from "next/navigation";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
-export async function signInPortal(
+// Verifica apenas se o email é um responsável válido desta cantina.
+// O signInWithPassword é feito client-side para evitar o problema de
+// cookies de sessão não chegarem ao middleware via server action + redirect().
+export async function verifyResponsavel(
   email: string,
-  password: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const emailNorm = email.toLowerCase().trim();
   const admin = createAdminClient();
@@ -27,19 +29,7 @@ export async function signInPortal(
     return { ok: false, error: "E-mail ou senha incorretos." };
   }
 
-  const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: emailNorm,
-    password,
-  });
-
-  if (error) {
-    return { ok: false, error: "E-mail ou senha incorretos." };
-  }
-
-  // redirect() dentro do server action garante que os cookies de sessão
-  // são enviados junto com a resposta de redirect — padrão Supabase + Next.js
-  redirect("/portal/dashboard");
+  return { ok: true };
 }
 
 export async function solicitarSenhaTemporaria(

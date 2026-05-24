@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { signInPortal, solicitarSenhaTemporaria } from "@/app/portal/login/actions";
+import { useRouter } from "next/navigation";
+import { verifyResponsavel, solicitarSenhaTemporaria } from "@/app/portal/login/actions";
+import { createClient } from "@/lib/supabase/client";
 
 type Step = "login" | "solicitar" | "enviado";
 
 export default function PortalLoginForm() {
+  const router = useRouter();
   const [step, setStep] = useState<Step>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,13 +20,30 @@ export default function PortalLoginForm() {
     setLoading(true);
     setError(null);
 
-    // signInPortal chama redirect() no servidor em caso de sucesso —
-    // o Next.js navega automaticamente sem retornar ao client.
-    // Se retornar, é porque houve erro de autenticação.
-    const result = await signInPortal(email, password);
+    // 1. Verifica no servidor se o email é responsável desta cantina
+    const check = await verifyResponsavel(email);
+    if (!check.ok) {
+      setError(check.error ?? "Ocorreu um erro. Tente novamente.");
+      setLoading(false);
+      return;
+    }
 
-    setLoading(false);
-    setError(result.error ?? "Ocorreu um erro. Tente novamente.");
+    // 2. signInWithPassword client-side: o browser client (createBrowserClient)
+    //    seta os cookies de sessão diretamente no browser, sem passar por
+    //    server action, então o middleware os encontra na próxima request.
+    const supabase = createClient();
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password,
+    });
+
+    if (authError) {
+      setError("E-mail ou senha incorretos.");
+      setLoading(false);
+      return;
+    }
+
+    router.push("/portal/dashboard");
   }
 
   async function handleSolicitar(e: React.FormEvent<HTMLFormElement>) {
