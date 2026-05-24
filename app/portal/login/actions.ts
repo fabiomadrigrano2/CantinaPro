@@ -37,7 +37,9 @@ export async function signInPortal(
     return { ok: false, error: "E-mail ou senha incorretos." };
   }
 
-  return { ok: true };
+  // redirect() dentro do server action garante que os cookies de sessão
+  // são enviados junto com a resposta de redirect — padrão Supabase + Next.js
+  redirect("/portal/dashboard");
 }
 
 export async function solicitarSenhaTemporaria(

@@ -17,16 +17,13 @@ export default function PortalLoginForm() {
     setLoading(true);
     setError(null);
 
+    // signInPortal chama redirect() no servidor em caso de sucesso —
+    // o Next.js navega automaticamente sem retornar ao client.
+    // Se retornar, é porque houve erro de autenticação.
     const result = await signInPortal(email, password);
 
-    if (!result.ok) {
-      setError(result.error ?? "Ocorreu um erro. Tente novamente.");
-      setLoading(false);
-      return;
-    }
-
-    // Full navigation so middleware picks up the new session cookies
-    window.location.href = "/portal/dashboard";
+    setLoading(false);
+    setError(result.error ?? "Ocorreu um erro. Tente novamente.");
   }
 
   async function handleSolicitar(e: React.FormEvent<HTMLFormElement>) {
