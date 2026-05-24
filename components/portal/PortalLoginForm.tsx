@@ -22,28 +22,31 @@ export default function PortalLoginForm() {
 
     // 1. Verifica no servidor se o email é responsável desta cantina
     const check = await verifyResponsavel(email);
+    console.log("[login] verifyResponsavel:", check);
     if (!check.ok) {
       setError(check.error ?? "Ocorreu um erro. Tente novamente.");
       setLoading(false);
       return;
     }
 
-    // 2. signInWithPassword client-side: o browser client (createBrowserClient)
-    //    seta os cookies de sessão diretamente no browser, sem passar por
-    //    server action, então o middleware os encontra na próxima request.
+    // 2. signInWithPassword client-side
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase().trim(),
       password,
     });
+    console.log("[login] signInWithPassword — user:", data?.user?.email ?? null, "session:", !!data?.session, "error:", authError?.message ?? null);
 
-    if (authError) {
-      setError("E-mail ou senha incorretos.");
+    if (authError || !data.session) {
+      setError(authError?.message ?? "E-mail ou senha incorretos.");
       setLoading(false);
       return;
     }
 
-    router.push("/portal/dashboard");
+    console.log("[login] cookies após signIn:", document.cookie.slice(0, 120));
+    // window.location.href força carregamento completo — garante que os
+    // cookies do browser client chegam ao middleware sem cache de rota
+    window.location.href = "/portal/dashboard";
   }
 
   async function handleSolicitar(e: React.FormEvent<HTMLFormElement>) {
