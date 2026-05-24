@@ -72,15 +72,31 @@ export default async function PortalDashboardPage() {
   if (!responsavel) redirect("/portal/login");
 
   // Find first linked aluno — includes saldo/tipo_conta/limite_diario stored on alunos
-  const { data: link } = await admin
+  console.log("[dashboard] buscando aluno_responsavel com responsavel_id:", responsavel.id);
+
+  const { data: link, error: linkError } = await admin
     .from("aluno_responsavel")
     .select("aluno_id, alunos(id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome))")
     .eq("responsavel_id", responsavel.id)
     .limit(1)
     .maybeSingle();
 
-  const alunoRaw = (link as any)?.alunos;
-  console.log("[dashboard] link aluno_responsavel:", link?.aluno_id ?? null, "alunoRaw:", alunoRaw?.id ?? null);
+  // fallback: tenta buscar pelo user_id do Auth caso o vínculo use esse campo
+  let linkFinal = link;
+  if (!link && !linkError) {
+    console.log("[dashboard] sem resultado por responsavel.id, tentando por user_id do auth:", user.id);
+    const { data: linkByUserId, error: linkByUserIdError } = await admin
+      .from("aluno_responsavel")
+      .select("aluno_id, alunos(id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome))")
+      .eq("responsavel_id", user.id)
+      .limit(1)
+      .maybeSingle();
+    console.log("[dashboard] fallback user_id → aluno_id:", linkByUserId?.aluno_id ?? null, "error:", linkByUserIdError?.message ?? null);
+    linkFinal = linkByUserId;
+  }
+
+  const alunoRaw = (linkFinal as any)?.alunos;
+  console.log("[dashboard] link aluno_responsavel:", linkFinal?.aluno_id ?? null, "linkError:", linkError?.message ?? null, "alunoRaw:", alunoRaw?.id ?? null);
   if (!alunoRaw) redirect("/portal/login");
 
   const alunoId: string          = alunoRaw.id;
