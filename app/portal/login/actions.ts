@@ -2,9 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient as createAnonClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { Resend } from "resend";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
@@ -54,24 +54,48 @@ export async function solicitarSenhaTemporaria(
   // 422 = já existe — ignoramos e seguimos para enviar o reset
   await admin.auth.admin.createUser({ email: emailNorm, email_confirm: true });
 
-  // Envia o e-mail de redefinição de senha via SMTP do Supabase
   const h = headers();
   const host  = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? "http";
   const redirectTo = `${proto}://${host}/portal/reset-password`;
 
-  // implicit flow: tokens chegam no hash (#access_token=...) — mais simples sem PKCE
-  const anon = createAnonClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { auth: { flowType: "implicit" } },
-  );
+  // Gera o link de reset via admin SDK (não dispara email — só retorna a URL)
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: emailNorm,
+    options: { redirectTo },
+  });
 
-  console.log("[solicitarSenha] redirectTo:", redirectTo);
+  if (linkError || !linkData?.properties?.action_link) {
+    console.error("[solicitarSenha] generateLink falhou:", linkError?.message);
+    return { ok: false, error: "Erro ao gerar link de recuperação. Tente novamente." };
+  }
 
-  const { error } = await anon.auth.resetPasswordForEmail(emailNorm, { redirectTo });
-  if (error) {
-    console.error("[solicitarSenha] resetPasswordForEmail falhou:", error.message);
+  const actionLink = linkData.properties.action_link;
+  console.log("[solicitarSenha] link gerado para:", emailNorm);
+
+  // Envia o email via Resend (onboarding@resend.dev funciona sem verificar domínio)
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  const { error: sendError } = await resend.emails.send({
+    from: "CantinaPro <onboarding@resend.dev>",
+    to: emailNorm,
+    subject: "Redefinição de senha — CantinaPro",
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+        <h2 style="color:#1a1a1a">Redefinição de senha</h2>
+        <p>Você solicitou a redefinição da sua senha na CantinaPro.</p>
+        <p>Clique no botão abaixo para criar uma nova senha. O link expira em 1 hora.</p>
+        <a href="${actionLink}"
+           style="display:inline-block;margin:16px 0;padding:12px 24px;background:#16a34a;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+          Redefinir senha
+        </a>
+        <p style="color:#666;font-size:13px">Se você não solicitou a redefinição, ignore este e-mail.</p>
+      </div>
+    `,
+  });
+
+  if (sendError) {
+    console.error("[solicitarSenha] Resend falhou:", sendError.message);
     return { ok: false, error: "Erro ao enviar e-mail. Tente novamente." };
   }
 
