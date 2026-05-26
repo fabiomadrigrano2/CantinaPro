@@ -7,6 +7,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Legend,
 } from "recharts";
+import CaixaSection, { type Movimentacao } from "./CaixaSection";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -133,11 +134,15 @@ export default function FinanceiroView({
   dataHoje,
   fechamentos,
   cantinaId,
+  saldoCaixa,
+  movimentacoesCaixa,
 }: {
   creditoHoje: number;
   dataHoje: string;
   fechamentos: Fechamento[];
   cantinaId: string;
+  saldoCaixa: number;
+  movimentacoesCaixa: Movimentacao[];
 }) {
   const router = useRouter();
 
@@ -179,8 +184,50 @@ export default function FinanceiroView({
         { onConflict: "cantina_id,data" }
       );
 
+    if (err) { setError(err.message); setSaving(false); return; }
+
+    // Auto-registra entrada no caixa para o dinheiro do fechamento
+    if (dinheiro > 0) {
+      const descricaoCaixa = `Vendas em dinheiro — ${fmtDate(dataHoje)}`;
+
+      const [{ data: existing }, { data: todasMovs }] = await Promise.all([
+        supabase
+          .from("movimentacoes_caixa")
+          .select("id, valor, saldo_apos")
+          .eq("cantina_id", cantinaId)
+          .eq("descricao", descricaoCaixa)
+          .maybeSingle(),
+        supabase
+          .from("movimentacoes_caixa")
+          .select("tipo, valor")
+          .eq("cantina_id", cantinaId),
+      ]);
+
+      const saldoAtual = (todasMovs ?? []).reduce(
+        (acc: number, m: any) => acc + (m.tipo === "saida" ? -m.valor : m.valor),
+        0
+      );
+
+      if (!existing) {
+        await supabase.from("movimentacoes_caixa").insert({
+          cantina_id: cantinaId,
+          data:       new Date().toISOString(),
+          tipo:       "entrada",
+          valor:      dinheiro,
+          descricao:  descricaoCaixa,
+          saldo_apos: saldoAtual + dinheiro,
+        });
+      } else if ((existing as any).valor !== dinheiro) {
+        // Valor do dinheiro mudou: atualiza a entrada do caixa
+        const delta = dinheiro - (existing as any).valor;
+        await supabase
+          .from("movimentacoes_caixa")
+          .update({ valor: dinheiro, saldo_apos: (existing as any).saldo_apos + delta })
+          .eq("id", (existing as any).id);
+      }
+    }
+
     setSaving(false);
-    if (err) { setError(err.message); return; }
     setSuccess(true);
     router.refresh();
   }
@@ -207,6 +254,13 @@ export default function FinanceiroView({
 
   return (
     <div className="space-y-6">
+
+      {/* ── Caixa ────────────────────────────────────────────────────────────── */}
+      <CaixaSection
+        saldoCaixa={saldoCaixa}
+        movimentacoes={movimentacoesCaixa}
+        cantinaId={cantinaId}
+      />
 
       {/* ── Formulário de fechamento ─────────────────────────────────────────── */}
       <Card title={`Fechamento de hoje — ${fmtDate(dataHoje)}`}>

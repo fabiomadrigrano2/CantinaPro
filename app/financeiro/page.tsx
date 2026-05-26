@@ -17,7 +17,7 @@ export default async function FinanceiroPage() {
     String(br.getUTCDate()).padStart(2, "0"),
   ].join("-");
 
-  // Total de pedidos confirmados hoje (para preencher valor_credito automaticamente)
+  // Pedidos de hoje para preencher valor_credito automaticamente
   const { data: pedidosHoje } = await supabase
     .from("pedidos")
     .select("total")
@@ -35,24 +35,39 @@ export default async function FinanceiroPage() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  const { data: fechamentos } = await supabase
-    .from("fechamentos_diarios")
-    .select("id, data, valor_dinheiro, valor_cartao, valor_pix, valor_credito, total")
-    .eq("cantina_id", CANTINA_ID)
-    .gte("data", sixMonthsAgo.toISOString().split("T")[0])
-    .order("data", { ascending: false });
+  const [fechamentosRes, movimentacoesRes] = await Promise.all([
+    supabase
+      .from("fechamentos_diarios")
+      .select("id, data, valor_dinheiro, valor_cartao, valor_pix, valor_credito, total")
+      .eq("cantina_id", CANTINA_ID)
+      .gte("data", sixMonthsAgo.toISOString().split("T")[0])
+      .order("data", { ascending: false }),
+
+    (supabase as any)
+      .from("movimentacoes_caixa")
+      .select("id, data, tipo, valor, descricao, saldo_apos, criado_em")
+      .eq("cantina_id", CANTINA_ID)
+      .order("criado_em", { ascending: false })
+      .limit(100),
+  ]);
+
+  const movimentacoes = movimentacoesRes.data ?? [];
+  // saldo_apos da movimentação mais recente = saldo atual
+  const saldoCaixa: number = movimentacoes[0]?.saldo_apos ?? 0;
 
   return (
     <AppLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Financeiro</h1>
-        <p className="text-sm text-gray-500 mt-1">Fechamento diário e análise de receitas</p>
+        <p className="text-sm text-gray-500 mt-1">Fechamento diário, caixa e análise de receitas</p>
       </div>
       <FinanceiroView
         creditoHoje={creditoHoje}
         dataHoje={dataHoje}
-        fechamentos={(fechamentos as any) ?? []}
+        fechamentos={(fechamentosRes.data as any) ?? []}
         cantinaId={CANTINA_ID}
+        saldoCaixa={saldoCaixa}
+        movimentacoesCaixa={movimentacoes}
       />
     </AppLayout>
   );
