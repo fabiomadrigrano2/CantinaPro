@@ -19,21 +19,23 @@ export default async function CobrancasPage() {
 
   let pedidosPorAluno: Record<string, any[]> = {};
   if (alunoIds.length > 0) {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     const { data: pedidos } = await supabase
       .from("pedidos")
       .select("id, aluno_id, total, criado_em, itens_pedido(nome_produto, quantidade)")
       .eq("cantina_id", CANTINA_ID)
       .eq("status", "confirmado")
       .in("aluno_id", alunoIds)
+      .gte("criado_em", thirtyDaysAgo.toISOString())
       .order("criado_em", { ascending: false })
-      .limit(200);
+      .limit(500);
 
     for (const p of pedidos ?? []) {
       const aid = (p as any).aluno_id as string;
       if (!pedidosPorAluno[aid]) pedidosPorAluno[aid] = [];
-      if (pedidosPorAluno[aid].length < 10) {
-        pedidosPorAluno[aid].push(p);
-      }
+      pedidosPorAluno[aid].push(p);
     }
   }
 
