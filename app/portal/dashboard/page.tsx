@@ -69,7 +69,9 @@ export default async function PortalDashboardPage() {
     .maybeSingle();
 
   console.log("[dashboard] responsavel:", responsavel?.id ?? null, "error:", respError?.message ?? null);
-  if (!responsavel) redirect("/portal/login");
+  if (!responsavel) {
+    return <div style={{ padding: "2rem" }}>Conta não encontrada. Contacte a cantina.</div>;
+  }
 
   // Step 1: get aluno_id from aluno_responsavel (no join — avoids permission issues on alunos)
   const { data: link, error: linkError } = await admin
@@ -83,8 +85,8 @@ export default async function PortalDashboardPage() {
 
   const alunoId: string = link?.aluno_id ?? "";
   if (!alunoId) {
-    console.log("[dashboard] sem aluno_id — redirect login");
-    redirect("/portal/login");
+    console.log("[dashboard] sem aluno_id — sem aluno vinculado");
+    return <div style={{ padding: "2rem" }}>Nenhum aluno vinculado a esta conta. Contacte a cantina.</div>;
   }
 
   // Step 2: fetch aluno directly by id
@@ -95,7 +97,9 @@ export default async function PortalDashboardPage() {
     .maybeSingle();
 
   console.log("[dashboard] aluno:", alunoRaw?.id ?? null, "error:", alunoError?.message ?? null);
-  if (!alunoRaw) redirect("/portal/login");
+  if (!alunoRaw) {
+    return <div style={{ padding: "2rem" }}>Aluno não encontrado. Contacte a cantina.</div>;
+  }
 
   const alunoNome: string        = alunoRaw.nome;
   const turmaNome: string | null = (alunoRaw.turmas as any)?.nome ?? null;
