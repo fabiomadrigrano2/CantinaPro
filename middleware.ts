@@ -10,8 +10,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Create a mutable response so session cookie refreshes propagate to the browser
-  const response = NextResponse.next()
+  // Must pass { request } so refreshed session cookies are forwarded to the page,
+  // otherwise getUser() in Server Components sees the old (possibly expired) token
+  // and redirects back to login — causing an infinite redirect loop.
+  let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,7 +24,7 @@ export async function middleware(request: NextRequest) {
         setAll: (cookiesToSet) =>
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value)
-            response.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, options)
           }),
       },
     }
@@ -37,7 +39,7 @@ export async function middleware(request: NextRequest) {
     if (user && pathname === '/portal/login') {
       return NextResponse.redirect(new URL('/portal/dashboard', request.url))
     }
-    return NextResponse.next()
+    return supabaseResponse
   }
 
   // Admin login: redirect authenticated users to admin dashboard
@@ -45,7 +47,7 @@ export async function middleware(request: NextRequest) {
     if (user) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
-    return NextResponse.next()
+    return supabaseResponse
   }
 
   // Portal protected routes
@@ -53,7 +55,7 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL('/portal/login', request.url))
     }
-    return response
+    return supabaseResponse
   }
 
   // All other protected routes redirect to the admin login
@@ -61,9 +63,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  return response
+  return supabaseResponse
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Exclude static assets, images, favicon, and API routes from middleware
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|api/).*)'],
 }
