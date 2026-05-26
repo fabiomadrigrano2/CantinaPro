@@ -46,35 +46,37 @@ function proximoCiclo(ciclo: string | null, dia: number | null): string {
   return candidato.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-function buildWhatsAppUrl(devedor: Devedor, pedidos: PedidoExtrato[]): string {
-  const nome  = devedor.nome;
-  const turma = devedor.turma ?? "—";
+function buildMessage(devedor: Devedor, pedidos: PedidoExtrato[]): string {
+  const primeiroNome = devedor.nome.split(" ")[0];
   const valor = fmt(Math.abs(devedor.saldo));
-  const tel   = (devedor.telefone_responsavel ?? "").replace(/\D/g, "");
   const venc  = proximoCiclo(devedor.ciclo_cobranca, devedor.dia_cobranca);
 
-  const extratoLines = pedidos.slice(0, 10).map((p) => {
-    const data  = new Date(p.criado_em).toLocaleDateString("pt-BR");
+  const linhas = pedidos.slice(0, 10).map((p) => {
+    const data  = new Date(p.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
     const itens = p.itens_pedido
       .map((i) => `${i.quantidade > 1 ? i.quantidade + "x " : ""}${i.nome_produto}`)
       .join(", ");
-    return `- ${data}: ${itens} - ${fmt(p.total)}`;
+    return `• ${data} — ${itens} — ${fmt(p.total)}`;
   });
 
-  const extrato =
-    extratoLines.length > 0
-      ? `\n\nExtrato recente (últimos 30 dias):\n${extratoLines.join("\n")}`
-      : "";
+  const extrato = linhas.length > 0
+    ? `\n\nÚltimas compras:\n${linhas.join("\n")}`
+    : "";
 
-  const msg =
-    `Olá! Passando para informar que o(a) aluno(a) ${nome}, da turma ${turma}, possui um saldo devedor de ${valor} na cantina.` +
+  return (
+    `Oi! Tudo bem? 😊\n\n` +
+    `Passando pra avisar que *${primeiroNome}* está com *${valor}* em aberto na cantina.` +
     extrato +
-    `\n\nTotal em aberto: ${valor}` +
-    `\nPróximo vencimento: ${venc}` +
-    `\n\nPor favor, entre em contato para regularizar. Obrigado!`;
+    `\n\n💰 *Total em aberto: ${valor}*` +
+    `\n📅 *Vencimento: ${venc}*` +
+    `\n\nQualquer dúvida é só chamar! 🙏`
+  );
+}
 
-  const base = tel ? `https://wa.me/55${tel}` : "https://wa.me/";
-  return `${base}?text=${encodeURIComponent(msg)}`;
+function buildWhatsAppUrl(tel: string, message: string): string {
+  const telClean = tel.replace(/\D/g, "");
+  const base = telClean ? `https://wa.me/55${telClean}` : "https://wa.me/";
+  return `${base}?text=${encodeURIComponent(message)}`;
 }
 
 function cicloBadge(ciclo: string | null) {
@@ -92,7 +94,7 @@ const WHATSAPP_ICON = (
   </svg>
 );
 
-// ── modal de prévia do extrato ────────────────────────────────────────────────
+// ── modal de prévia editável ──────────────────────────────────────────────────
 
 function ExtratoModal({
   devedor,
@@ -103,9 +105,9 @@ function ExtratoModal({
   pedidos: PedidoExtrato[];
   onClose: () => void;
 }) {
-  const venc  = proximoCiclo(devedor.ciclo_cobranca, devedor.dia_cobranca);
-  const total = Math.abs(devedor.saldo);
-  const waUrl = buildWhatsAppUrl(devedor, pedidos);
+  const [msg, setMsg] = useState(() => buildMessage(devedor, pedidos));
+  const tel   = devedor.telefone_responsavel ?? "";
+  const waUrl = buildWhatsAppUrl(tel, msg);
 
   return (
     <div
@@ -113,14 +115,19 @@ function ExtratoModal({
       onClick={onClose}
     >
       <div
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
           <div>
             <h2 className="text-base font-semibold text-white leading-tight">{devedor.nome}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Turma {devedor.turma ?? "—"}</p>
+            <div className="flex items-center gap-3 mt-1">
+              <span className="text-sm text-gray-500">Turma {devedor.turma ?? "—"}</span>
+              <span className="text-sm font-bold text-red-400 tabular-nums">
+                {fmt(Math.abs(devedor.saldo))} em aberto
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -133,73 +140,44 @@ function ExtratoModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="p-5 space-y-4 overflow-y-auto">
-          {/* Saldo */}
-          <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20">
-            <span className="text-sm text-gray-400">Saldo devedor</span>
-            <span className="text-xl font-bold text-red-400 tabular-nums">{fmt(total)}</span>
-          </div>
-
-          {/* Histórico */}
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-              Compras — últimos 30 dias
-            </p>
-            {pedidos.length > 0 ? (
-              <div className="space-y-2">
-                {pedidos.map((p) => {
-                  const data  = new Date(p.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-                  const itens = p.itens_pedido
-                    .map((i) => `${i.quantidade > 1 ? i.quantidade + "x " : ""}${i.nome_produto}`)
-                    .join(", ");
-                  return (
-                    <div key={p.id} className="flex items-center justify-between gap-3 text-sm">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <span className="text-gray-600 tabular-nums shrink-0 text-xs">{data}</span>
-                        <span className="text-gray-300 truncate">{itens}</span>
-                      </div>
-                      <span className="text-gray-400 tabular-nums shrink-0 text-xs">{fmt(p.total)}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-600 italic">Nenhuma compra nos últimos 30 dias.</p>
-            )}
-          </div>
-
-          {/* Totais e vencimento */}
-          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-cp-border">
-            <div>
-              <p className="text-xs text-gray-600 mb-0.5">Total em aberto</p>
-              <p className="text-sm font-bold text-red-400 tabular-nums">{fmt(total)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-gray-600 mb-0.5">Próximo vencimento</p>
-              <p className="text-sm font-semibold text-white">{venc}</p>
-            </div>
-          </div>
+        {/* Textarea editável */}
+        <div className="p-5 flex flex-col gap-2 flex-1 overflow-hidden">
+          <p className="text-xs text-gray-500 shrink-0">
+            Edite a mensagem antes de enviar:
+          </p>
+          <textarea
+            value={msg}
+            onChange={(e) => setMsg(e.target.value)}
+            className="flex-1 min-h-[220px] w-full bg-cp-elevated border border-cp-border rounded-xl p-4 text-sm text-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition leading-relaxed"
+          />
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
           <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+            onClick={() => setMsg(buildMessage(devedor, pedidos))}
+            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
           >
-            Cancelar
+            Restaurar original
           </button>
-          <a
-            href={waUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onClose}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20"
-          >
-            {WHATSAPP_ICON}
-            Enviar no WhatsApp
-          </a>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+            >
+              Cancelar
+            </button>
+            <a
+              href={waUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onClose}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20"
+            >
+              {WHATSAPP_ICON}
+              Enviar no WhatsApp
+            </a>
+          </div>
         </div>
       </div>
     </div>
@@ -321,7 +299,7 @@ export default function CobrancasList({
                 ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
                 : "bg-gray-700 text-gray-400 cursor-not-allowed";
               const waTitle  = temTel
-                ? "Ver extrato e enviar via WhatsApp"
+                ? "Ver prévia e enviar via WhatsApp"
                 : "Cadastre o telefone no perfil do aluno";
 
               const openPreview = () => {
