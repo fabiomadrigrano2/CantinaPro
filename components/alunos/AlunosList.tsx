@@ -892,53 +892,56 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 </div>
               </div>
 
-              {/* Ciclo de cobrança */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Ciclo de cobrança
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {(["semanal", "mensal"] as const).map((ciclo) => (
-                    <label
-                      key={ciclo}
-                      className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border cursor-pointer transition text-sm font-medium ${
-                        form.ciclo_cobranca === ciclo
-                          ? "border-orange-500 bg-orange-500/10 text-white"
-                          : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
-                      }`}
-                    >
-                      <input
-                        type="radio" name="ciclo_cobranca" value={ciclo}
-                        checked={form.ciclo_cobranca === ciclo}
-                        onChange={() => set("ciclo_cobranca", ciclo)}
-                        className="sr-only"
-                      />
-                      {ciclo === "semanal" ? "📅 Semanal" : "🗓️ Mensal"}
+              {/* Ciclo de cobrança e dia — apenas para Fiado */}
+              {form.tipo_conta === "fiado" && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Ciclo de cobrança
                     </label>
-                  ))}
-                </div>
-                {form.ciclo_cobranca === "semanal" && (
-                  <p className="mt-2 text-xs text-gray-500">Cobrança toda sexta-feira</p>
-                )}
-              </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {(["semanal", "mensal"] as const).map((ciclo) => (
+                        <label
+                          key={ciclo}
+                          className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border cursor-pointer transition text-sm font-medium ${
+                            form.ciclo_cobranca === ciclo
+                              ? "border-orange-500 bg-orange-500/10 text-white"
+                              : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
+                          }`}
+                        >
+                          <input
+                            type="radio" name="ciclo_cobranca" value={ciclo}
+                            checked={form.ciclo_cobranca === ciclo}
+                            onChange={() => set("ciclo_cobranca", ciclo)}
+                            className="sr-only"
+                          />
+                          {ciclo === "semanal" ? "📅 Semanal" : "🗓️ Mensal"}
+                        </label>
+                      ))}
+                    </div>
+                    {form.ciclo_cobranca === "semanal" && (
+                      <p className="mt-2 text-xs text-gray-500">Cobrança toda sexta-feira</p>
+                    )}
+                  </div>
 
-              {/* Dia do mês — visível apenas quando Mensal */}
-              {form.ciclo_cobranca === "mensal" && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                    Dia do mês para cobrança <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number" required min="1" max="31" step="1"
-                    value={form.dia_cobranca}
-                    onChange={(e) => set("dia_cobranca", e.target.value)}
-                    className={inputCls}
-                    placeholder="Ex: 5"
-                  />
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    Cobrança todo dia {form.dia_cobranca || "—"} de cada mês
-                  </p>
-                </div>
+                  {form.ciclo_cobranca === "mensal" && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                        Dia do mês para cobrança <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="number" required min="1" max="31" step="1"
+                        value={form.dia_cobranca}
+                        onChange={(e) => set("dia_cobranca", e.target.value)}
+                        className={inputCls}
+                        placeholder="Ex: 5"
+                      />
+                      <p className="mt-1.5 text-xs text-gray-500">
+                        Cobrança todo dia {form.dia_cobranca || "—"} de cada mês
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               {formError && (

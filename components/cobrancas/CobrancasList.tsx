@@ -27,6 +27,14 @@ type Devedor = {
   telefone_responsavel: string | null;
 };
 
+type AlunoSemCredito = {
+  id: string;
+  nome: string;
+  turma: string | null;
+  saldo: number;
+  telefone_responsavel: string | null;
+};
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 const fmt = (v: number) =>
@@ -79,6 +87,15 @@ function buildWhatsAppUrl(tel: string, message: string): string {
   return `${base}?text=${encodeURIComponent(message)}`;
 }
 
+function buildCreditoMessage(aluno: AlunoSemCredito): string {
+  const primeiroNome = aluno.nome.split(" ")[0];
+  return (
+    `Oi! O saldo de crédito do(a) ${primeiroNome} zerou na cantina. ` +
+    `Para continuar comprando, é necessário fazer uma recarga. ` +
+    `Qualquer dúvida estou à disposição!`
+  );
+}
+
 function cicloBadge(ciclo: string | null) {
   if (ciclo === "semanal")
     return { label: "📅 Semanal", cls: "bg-violet-400/10 text-violet-300 border-violet-400/20" };
@@ -98,14 +115,14 @@ const WHATSAPP_ICON = (
 
 function ExtratoModal({
   devedor,
-  pedidos,
+  initialMessage,
   onClose,
 }: {
-  devedor: Devedor;
-  pedidos: PedidoExtrato[];
+  devedor: { nome: string; turma: string | null; saldo: number; telefone_responsavel: string | null };
+  initialMessage: string;
   onClose: () => void;
 }) {
-  const [msg, setMsg] = useState(() => buildMessage(devedor, pedidos));
+  const [msg, setMsg] = useState(initialMessage);
   const tel   = devedor.telefone_responsavel ?? "";
   const waUrl = buildWhatsAppUrl(tel, msg);
 
@@ -124,9 +141,15 @@ function ExtratoModal({
             <h2 className="text-base font-semibold text-white leading-tight">{devedor.nome}</h2>
             <div className="flex items-center gap-3 mt-1">
               <span className="text-sm text-gray-500">Turma {devedor.turma ?? "—"}</span>
-              <span className="text-sm font-bold text-red-400 tabular-nums">
-                {fmt(Math.abs(devedor.saldo))} em aberto
-              </span>
+              {devedor.saldo < 0 ? (
+                <span className="text-sm font-bold text-red-400 tabular-nums">
+                  {fmt(Math.abs(devedor.saldo))} em aberto
+                </span>
+              ) : (
+                <span className="text-sm font-bold text-amber-400">
+                  Saldo zerado
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -155,7 +178,7 @@ function ExtratoModal({
         {/* Footer */}
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
           <button
-            onClick={() => setMsg(buildMessage(devedor, pedidos))}
+            onClick={() => setMsg(initialMessage)}
             className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
           >
             Restaurar original
@@ -189,19 +212,25 @@ function ExtratoModal({
 export default function CobrancasList({
   initialDevedores,
   pedidosPorAluno,
+  semCredito,
 }: {
   initialDevedores: Devedor[];
   pedidosPorAluno: Record<string, PedidoExtrato[]>;
+  semCredito: AlunoSemCredito[];
 }) {
   const [search,      setSearch]      = useState("");
   const [turmaFiltro, setTurmaFiltro] = useState("todas");
-  const [preview,     setPreview]     = useState<{ devedor: Devedor; pedidos: PedidoExtrato[] } | null>(null);
+  const [preview, setPreview] = useState<{
+    devedor: { nome: string; turma: string | null; saldo: number; telefone_responsavel: string | null };
+    initialMessage: string;
+  } | null>(null);
 
   const turmas = useMemo(() => {
     const set = new Set<string>();
     initialDevedores.forEach((d) => { if (d.turma) set.add(d.turma); });
+    semCredito.forEach((a) => { if (a.turma) set.add(a.turma); });
     return Array.from(set).sort();
-  }, [initialDevedores]);
+  }, [initialDevedores, semCredito]);
 
   const filtered = useMemo(() => {
     return initialDevedores.filter((d) => {
@@ -214,6 +243,17 @@ export default function CobrancasList({
     });
   }, [initialDevedores, search, turmaFiltro]);
 
+  const filteredSemCredito = useMemo(() => {
+    return semCredito.filter((a) => {
+      const nome  = a.nome.toLowerCase();
+      const turma = a.turma ?? "";
+      return (
+        nome.includes(search.toLowerCase()) &&
+        (turmaFiltro === "todas" || turma === turmaFiltro)
+      );
+    });
+  }, [semCredito, search, turmaFiltro]);
+
   const totalDevedor = useMemo(
     () => filtered.reduce((s, d) => s + (d.saldo ?? 0), 0),
     [filtered]
@@ -225,7 +265,7 @@ export default function CobrancasList({
       {preview && (
         <ExtratoModal
           devedor={preview.devedor}
-          pedidos={preview.pedidos}
+          initialMessage={preview.initialMessage}
           onClose={() => setPreview(null)}
         />
       )}
@@ -303,7 +343,7 @@ export default function CobrancasList({
                 : "Cadastre o telefone no perfil do aluno";
 
               const openPreview = () => {
-                if (temTel) setPreview({ devedor: d, pedidos });
+                if (temTel) setPreview({ devedor: d, initialMessage: buildMessage(d, pedidos) });
               };
 
               return (
@@ -366,8 +406,93 @@ export default function CobrancasList({
         </div>
       )}
 
+      {/* ── Seção: Crédito Zerado ─────────────────────────────────────── */}
+      {filteredSemCredito.length > 0 && (
+        <div className="mt-10">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-base font-semibold text-white">Crédito Zerado</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full border bg-amber-500/10 text-amber-400 border-amber-500/20">
+              {filteredSemCredito.length} aluno{filteredSemCredito.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <p className="text-sm text-gray-500 mb-4">
+            Alunos com conta Crédito com saldo zerado ou negativo. Avise o responsável para fazer recarga.
+          </p>
+
+          <div className="rounded-2xl border border-amber-500/15 overflow-hidden">
+            <div className="hidden md:grid grid-cols-[1fr_100px_130px_110px] gap-4 px-5 py-3 bg-cp-elevated border-b border-cp-border text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <span>Aluno</span>
+              <span>Turma</span>
+              <span>Saldo</span>
+              <span>Ação</span>
+            </div>
+
+            <div className="divide-y divide-cp-border">
+              {filteredSemCredito.map((a, i) => {
+                const temTel = !!(a.telefone_responsavel?.replace(/\D/g, ""));
+                const waBtnCls = temTel
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
+                  : "bg-gray-700 text-gray-400 cursor-not-allowed";
+                const waTitle = temTel
+                  ? "Ver prévia e enviar via WhatsApp"
+                  : "Cadastre o telefone no perfil do aluno";
+                const openPreview = () => {
+                  if (temTel) setPreview({ devedor: a, initialMessage: buildCreditoMessage(a) });
+                };
+
+                return (
+                  <div
+                    key={a.id ?? i}
+                    className="grid grid-cols-1 md:grid-cols-[1fr_100px_130px_110px] gap-2 md:gap-4 px-5 py-4 bg-cp-surface hover:bg-cp-elevated transition-colors items-center"
+                  >
+                    {/* Aluno */}
+                    <div className="flex items-center justify-between md:justify-start gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{a.nome}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 md:hidden">{a.turma ?? "—"}</p>
+                      </div>
+                      {/* WhatsApp — mobile */}
+                      <button
+                        onClick={openPreview}
+                        disabled={!temTel}
+                        title={waTitle}
+                        className={`md:hidden shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${waBtnCls}`}
+                      >
+                        {WHATSAPP_ICON}
+                        WhatsApp
+                      </button>
+                    </div>
+
+                    {/* Turma (desktop) */}
+                    <span className="hidden md:block text-sm text-gray-400 truncate">
+                      {a.turma ?? "—"}
+                    </span>
+
+                    {/* Saldo */}
+                    <span className={`text-sm font-bold tabular-nums ${a.saldo < 0 ? "text-red-400" : "text-amber-400"}`}>
+                      {a.saldo < 0 ? fmt(a.saldo) : "R$ 0,00"}
+                    </span>
+
+                    {/* WhatsApp — desktop */}
+                    <button
+                      onClick={openPreview}
+                      disabled={!temTel}
+                      title={waTitle}
+                      className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all w-fit ${waBtnCls}`}
+                    >
+                      {WHATSAPP_ICON}
+                      WhatsApp
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Aviso coluna telefone */}
-      {filtered.some((d) => !d.telefone_responsavel) && (
+      {(filtered.some((d) => !d.telefone_responsavel) || filteredSemCredito.some((a) => !a.telefone_responsavel)) && (
         <p className="mt-4 text-xs text-gray-600">
           Alunos sem telefone cadastrado aparecem com o botão WhatsApp desabilitado. Edite o aluno em{" "}
           <a href="/alunos" className="text-orange-400 hover:underline">Alunos</a> para adicionar.

@@ -12,8 +12,18 @@ export default async function CobrancasPage() {
     .select("id, nome, turma, saldo, ciclo_cobranca, dia_cobranca, telefone_responsavel")
     .eq("cantina_id", CANTINA_ID)
     .eq("tipo_conta", "fiado")
+    .eq("ativo", true)
     .lt("saldo", 0)
     .order("saldo");
+
+  const { data: semCredito } = await supabase
+    .from("alunos")
+    .select("id, nome, turma, saldo, telefone_responsavel")
+    .eq("cantina_id", CANTINA_ID)
+    .eq("tipo_conta", "credito")
+    .eq("ativo", true)
+    .lte("saldo", 0)
+    .order("nome");
 
   const alunoIds = (devedores ?? []).map((a: any) => a.id as string);
 
@@ -44,12 +54,13 @@ export default async function CobrancasPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Cobranças</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Alunos do tipo Fiado com saldo devedor
+          Alunos com pendências financeiras na cantina
         </p>
       </div>
       <CobrancasList
         initialDevedores={(devedores as any) ?? []}
         pedidosPorAluno={pedidosPorAluno}
+        semCredito={(semCredito as any) ?? []}
       />
     </AppLayout>
   );
