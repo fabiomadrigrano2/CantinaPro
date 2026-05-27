@@ -682,7 +682,7 @@ export default function NovaVenda() {
         .select("total")
         .eq("aluno_id", selectedAluno.id)
         .eq("cantina_id", CANTINA_ID)
-        .gte("created_at", todayStart);
+        .gte("criado_em", todayStart);
 
       if (limiteErr) {
         setSaleError(limiteErr.message);
