@@ -322,7 +322,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       if (alunoError) { setSaving(false); setFormError(alunoError.message); return; }
 
       // sync contas (best-effort)
-      await (supabase as any).from("contas").update({ saldo: parseFloat(form.saldo_inicial) || 0, tipo: form.tipo_conta }).eq("aluno_id", editingAluno.id);
+      await (supabase as any).from("contas").update({ saldo: parseFloat(form.saldo_inicial) || 0, tipo: form.tipo_conta as "credito" | "fiado" }).eq("aluno_id", editingAluno.id);
 
       setSaving(false);
     } else {
@@ -346,7 +346,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       if (alunoError) { setSaving(false); setFormError(alunoError.message); return; }
 
       // sync contas (best-effort)
-      await (supabase as any).from("contas").insert({ cantina_id: CANTINA_ID, aluno_id: aluno.id, saldo: parseFloat(form.saldo_inicial) || 0, tipo: form.tipo_conta });
+      await (supabase as any).from("contas").insert({ cantina_id: CANTINA_ID, aluno_id: aluno.id, saldo: parseFloat(form.saldo_inicial) || 0, tipo: form.tipo_conta as "credito" | "fiado" });
 
       // save pending guardians via server action (bypasses RLS correctly)
       for (const resp of responsaveis) {
