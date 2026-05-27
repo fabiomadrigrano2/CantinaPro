@@ -62,7 +62,8 @@ const inputCls =
 
 export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComConta[] }) {
   const router = useRouter();
-  const [search,       setSearch]       = useState("");
+  const [search,          setSearch]          = useState("");
+  const [mostrarInativos, setMostrarInativos] = useState(false);
   const [showModal,    setShowModal]    = useState(false);
   const [saving,       setSaving]       = useState(false);
   const [formError,    setFormError]    = useState<string | null>(null);
@@ -92,10 +93,11 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     () =>
       initialAlunos.filter(
         (a) =>
-          a.nome.toLowerCase().includes(search.toLowerCase()) ||
-          (a.turma ?? "").toLowerCase().includes(search.toLowerCase())
+          a.ativo === !mostrarInativos &&
+          (a.nome.toLowerCase().includes(search.toLowerCase()) ||
+            (a.turma ?? "").toLowerCase().includes(search.toLowerCase()))
       ),
-    [initialAlunos, search]
+    [initialAlunos, search, mostrarInativos]
   );
 
   useEffect(() => {
@@ -204,13 +206,19 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     const supabase = createClient();
     const { error } = await supabase
       .from("alunos")
-      .delete()
+      .update({ ativo: false })
       .eq("id", deletingAluno.id);
 
     setDeleting(false);
     if (error) { setDeleteError(error.message); return; }
 
     setDeletingAluno(null);
+    router.refresh();
+  }
+
+  async function handleReativar(aluno: AlunoComConta) {
+    const supabase = createClient();
+    await supabase.from("alunos").update({ ativo: true }).eq("id", aluno.id);
     router.refresh();
   }
 
@@ -376,6 +384,21 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           className="flex-1 px-4 py-2.5 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
         />
         <button
+          onClick={() => setMostrarInativos((v) => !v)}
+          title={mostrarInativos ? "Ver alunos ativos" : "Ver alunos inativos"}
+          className={`shrink-0 flex items-center gap-2 px-4 py-2.5 border text-sm font-medium rounded-lg transition-all ${
+            mostrarInativos
+              ? "bg-gray-500/20 border-gray-500/50 text-gray-200"
+              : "bg-cp-elevated border-cp-border text-gray-500 hover:text-gray-300 hover:border-cp-muted"
+          }`}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+          </svg>
+          <span className="hidden sm:inline">{mostrarInativos ? "Inativos" : "Inativos"}</span>
+        </button>
+        <button
           onClick={openModal}
           className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-semibold text-sm rounded-lg transition-all shadow-md shadow-orange-500/20"
         >
@@ -390,18 +413,25 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           <p className="py-14 text-center text-sm text-gray-500">
             {search
               ? "Nenhum aluno encontrado para essa busca."
-              : "Nenhum aluno cadastrado. Toque em \"+\" para começar."}
+              : mostrarInativos
+                ? "Nenhum aluno inativo."
+                : "Nenhum aluno cadastrado. Toque em \"+\" para começar."}
           </p>
         ) : (
           filtered.map((aluno) => {
             const saldo  = getSaldo(aluno);
             const status = statusBadge(saldo);
             return (
-              <div key={aluno.id} className="bg-cp-surface border border-cp-border rounded-2xl p-4 space-y-3">
+              <div key={aluno.id} className={`bg-cp-surface border border-cp-border rounded-2xl p-4 space-y-3 ${!aluno.ativo ? "opacity-60" : ""}`}>
                 {/* Nome + saldo */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-white truncate">{aluno.nome}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-white truncate">{aluno.nome}</p>
+                      {!aluno.ativo && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/20 shrink-0">Inativo</span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-500 mt-0.5">{aluno.turma ?? "—"}</p>
                   </div>
                   <div className="text-right shrink-0">
@@ -438,38 +468,49 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 </div>
 
                 {/* Botões de ação */}
-                <div className="flex gap-2 pt-1 border-t border-cp-border">
-                  <button
-                    onClick={() => openEditModal(aluno)}
-                    className="flex-1 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-400 hover:text-orange-400 hover:border-orange-500/30 text-xs font-medium transition active:scale-95"
-                  >
-                    Editar
-                  </button>
-                  {aluno.tipo_conta !== "fiado" ? (
+                {!aluno.ativo ? (
+                  <div className="flex gap-2 pt-1 border-t border-cp-border">
                     <button
-                      onClick={() => openCreditoModal(aluno)}
+                      onClick={() => handleReativar(aluno)}
                       className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium transition hover:bg-emerald-500/20 active:scale-95"
                     >
-                      + Crédito
+                      Reativar
                     </button>
-                  ) : aluno.conta_paga !== true ? (
+                  </div>
+                ) : (
+                  <div className="flex gap-2 pt-1 border-t border-cp-border">
                     <button
-                      onClick={() => openFiadoModal(aluno)}
-                      className="flex-1 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium transition hover:bg-orange-500/20 active:scale-95"
+                      onClick={() => openEditModal(aluno)}
+                      className="flex-1 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-400 hover:text-orange-400 hover:border-orange-500/30 text-xs font-medium transition active:scale-95"
                     >
-                      Registrar Pgto
+                      Editar
                     </button>
-                  ) : null}
-                  <button
-                    onClick={() => { setDeleteError(null); setDeletingAluno(aluno); }}
-                    className="w-10 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-500 hover:text-red-400 hover:border-red-500/30 transition active:scale-95 flex items-center justify-center"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                    </svg>
-                  </button>
-                </div>
+                    {aluno.tipo_conta !== "fiado" ? (
+                      <button
+                        onClick={() => openCreditoModal(aluno)}
+                        className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium transition hover:bg-emerald-500/20 active:scale-95"
+                      >
+                        + Crédito
+                      </button>
+                    ) : aluno.conta_paga !== true ? (
+                      <button
+                        onClick={() => openFiadoModal(aluno)}
+                        className="flex-1 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium transition hover:bg-orange-500/20 active:scale-95"
+                      >
+                        Registrar Pgto
+                      </button>
+                    ) : null}
+                    <button
+                      onClick={() => { setDeleteError(null); setDeletingAluno(aluno); }}
+                      className="w-10 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-500 hover:text-red-400 hover:border-red-500/30 transition active:scale-95 flex items-center justify-center"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })
@@ -501,7 +542,9 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   <td colSpan={8} className="px-4 py-14 text-center text-sm text-gray-500">
                     {search
                       ? "Nenhum aluno encontrado para essa busca."
-                      : "Nenhum aluno cadastrado. Clique em \"+ Novo Aluno\" para começar."}
+                      : mostrarInativos
+                        ? "Nenhum aluno inativo."
+                        : "Nenhum aluno cadastrado. Clique em \"+ Novo Aluno\" para começar."}
                   </td>
                 </tr>
               ) : (
@@ -509,9 +552,14 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   const saldo  = getSaldo(aluno);
                   const status = statusBadge(saldo);
                   return (
-                    <tr key={aluno.id} className="bg-cp-surface hover:bg-cp-elevated transition-colors group">
+                    <tr key={aluno.id} className={`bg-cp-surface hover:bg-cp-elevated transition-colors group ${!aluno.ativo ? "opacity-60" : ""}`}>
                       <td className="px-4 py-3.5 text-sm font-medium text-white whitespace-nowrap">
-                        {aluno.nome}
+                        <div className="flex items-center gap-2">
+                          {aluno.nome}
+                          {!aluno.ativo && (
+                            <span className="text-xs px-1.5 py-0.5 rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/20">Inativo</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 text-sm text-gray-400 whitespace-nowrap">
                         {aluno.turma ?? "—"}
@@ -539,7 +587,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                           <span className={saldo < 0 ? "text-red-400" : saldo < 10 ? "text-amber-400" : "text-emerald-400"}>
                             {fmt(saldo)}
                           </span>
-                          {aluno.tipo_conta !== "fiado" && (
+                          {aluno.ativo && aluno.tipo_conta !== "fiado" && (
                             <button
                               onClick={() => openCreditoModal(aluno)}
                               title="Adicionar crédito"
@@ -551,7 +599,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                         </div>
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        {aluno.tipo_conta === "fiado" ? (
+                        {aluno.ativo && aluno.tipo_conta === "fiado" ? (
                           aluno.conta_paga === true ? (
                             <span className="text-xs px-2 py-0.5 rounded-full border bg-emerald-400/10 text-emerald-400 border-emerald-400/20">
                               Paga
@@ -576,28 +624,41 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-all">
-                          <button
-                            onClick={() => openEditModal(aluno)}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-gray-500 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
-                            title="Editar aluno"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => { setDeleteError(null); setDeletingAluno(aluno); }}
-                            className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                            title="Excluir aluno"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="3 6 5 6 21 6"/>
-                              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                              <path d="M10 11v6M14 11v6"/>
-                              <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                            </svg>
-                          </button>
+                          {aluno.ativo ? (
+                            <>
+                              <button
+                                onClick={() => openEditModal(aluno)}
+                                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-gray-500 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
+                                title="Editar aluno"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => { setDeleteError(null); setDeletingAluno(aluno); }}
+                                className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                                title="Desativar aluno"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10"/>
+                                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                                </svg>
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => handleReativar(aluno)}
+                              className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all"
+                              title="Reativar aluno"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1131,19 +1192,17 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 pt-6 pb-4">
-              <div className="w-11 h-11 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                  <path d="M10 11v6M14 11v6"/>
-                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+              <div className="w-11 h-11 bg-orange-500/10 border border-orange-500/20 rounded-full flex items-center justify-center mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-orange-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                 </svg>
               </div>
-              <h3 className="font-semibold text-white mb-1.5">Excluir aluno</h3>
+              <h3 className="font-semibold text-white mb-1.5">Desativar aluno</h3>
               <p className="text-sm text-gray-400 leading-relaxed">
-                Tem certeza que deseja excluir{" "}
+                Tem certeza que deseja desativar{" "}
                 <span className="text-white font-medium">{deletingAluno.nome}</span>?
-                {" "}Essa ação não pode ser desfeita.
+                {" "}O aluno não aparecerá mais na lista nem em novas vendas. Você poderá reativá-lo depois.
               </p>
 
               {deleteError && (
@@ -1163,11 +1222,11 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg bg-red-500 hover:bg-red-600 disabled:bg-red-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                className="flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
               >
                 {deleting ? (
-                  <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Excluindo...</>
-                ) : "Excluir"}
+                  <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Desativando...</>
+                ) : "Desativar"}
               </button>
             </div>
           </div>
