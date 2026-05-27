@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
+  ResponsiveContainer,
 } from "recharts";
 import CaixaSection, { type Movimentacao } from "./CaixaSection";
 
@@ -19,6 +19,7 @@ type Fechamento = {
   valor_pix: number;
   valor_credito: number;
   total: number;
+  despesas: number;
 };
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ const fmtShort = (iso: string) => {
 const MONTH_NAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 function groupByWeek(fechamentos: Fechamento[]) {
-  const weeks: Record<string, { semana: string; total: number }> = {};
+  const weeks: Record<string, { semana: string; vendas: number; despesas: number; lucro: number }> = {};
   for (const f of fechamentos) {
     const [y, m, d] = f.data.split("-").map(Number);
     const date = new Date(y, m - 1, d);
@@ -48,8 +49,10 @@ function groupByWeek(fechamentos: Fechamento[]) {
     monday.setDate(date.getDate() - (dow === 0 ? 6 : dow - 1));
     const key = monday.toISOString().split("T")[0];
     const label = `${String(monday.getDate()).padStart(2,"0")}/${String(monday.getMonth()+1).padStart(2,"0")}`;
-    if (!weeks[key]) weeks[key] = { semana: label, total: 0 };
-    weeks[key].total += f.total;
+    if (!weeks[key]) weeks[key] = { semana: label, vendas: 0, despesas: 0, lucro: 0 };
+    weeks[key].vendas    += f.total;
+    weeks[key].despesas  += f.despesas;
+    weeks[key].lucro     += f.total - f.despesas;
   }
   return Object.entries(weeks)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -58,13 +61,15 @@ function groupByWeek(fechamentos: Fechamento[]) {
 }
 
 function groupByMonth(fechamentos: Fechamento[]) {
-  const months: Record<string, { mes: string; total: number }> = {};
+  const months: Record<string, { mes: string; vendas: number; despesas: number; lucro: number }> = {};
   for (const f of fechamentos) {
     const [y, m] = f.data.split("-").map(Number);
     const key = `${y}-${String(m).padStart(2,"0")}`;
     const label = `${MONTH_NAMES[m-1]}/${String(y).slice(-2)}`;
-    if (!months[key]) months[key] = { mes: label, total: 0 };
-    months[key].total += f.total;
+    if (!months[key]) months[key] = { mes: label, vendas: 0, despesas: 0, lucro: 0 };
+    months[key].vendas   += f.total;
+    months[key].despesas += f.despesas;
+    months[key].lucro    += f.total - f.despesas;
   }
   return Object.entries(months)
     .sort(([a], [b]) => a.localeCompare(b))
@@ -72,17 +77,25 @@ function groupByMonth(fechamentos: Fechamento[]) {
     .map(([, v]) => v);
 }
 
-// ── tooltips ──────────────────────────────────────────────────────────────────
-
-function SimpleTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background:"#1A1A1A", border:"1px solid #2A2A2A", borderRadius:10, padding:"8px 12px" }}>
-      <p style={{ color:"#9ca3af", fontSize:11, marginBottom:2 }}>{label}</p>
-      <p style={{ color:"#f97316", fontSize:13, fontWeight:700 }}>{fmt(payload[0].value)}</p>
-    </div>
-  );
+function getLucroAcumulado(fechamentos: Fechamento[], dataHoje: string, periodo: "semana" | "mes"): number {
+  if (periodo === "semana") {
+    const [y, m, d] = dataHoje.split("-").map(Number);
+    const today = new Date(y, m - 1, d);
+    const dow = today.getDay();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - (dow === 0 ? 6 : dow - 1));
+    const mondayStr = monday.toISOString().split("T")[0];
+    return fechamentos
+      .filter(f => f.data >= mondayStr && f.data <= dataHoje)
+      .reduce((s, f) => s + (f.total - f.despesas), 0);
+  }
+  const mesStr = dataHoje.slice(0, 7);
+  return fechamentos
+    .filter(f => f.data.startsWith(mesStr))
+    .reduce((s, f) => s + (f.total - f.despesas), 0);
 }
+
+// ── tooltips ──────────────────────────────────────────────────────────────────
 
 const TYPE_LABELS: Record<string, string> = {
   dinheiro: "Dinheiro",
@@ -116,6 +129,24 @@ function StackedTooltip({ active, payload, label }: any) {
   );
 }
 
+function LucroTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const map: Record<string, number> = {};
+  for (const p of payload) map[p.dataKey] = p.value ?? 0;
+  return (
+    <div style={{ background:"#1A1A1A", border:"1px solid #2A2A2A", borderRadius:10, padding:"8px 12px" }}>
+      <p style={{ color:"#9ca3af", fontSize:11, marginBottom:4 }}>{label}</p>
+      {map.vendas   !== undefined && <p style={{ color:"#f97316", fontSize:12, margin:"1px 0" }}>Vendas: {fmt(map.vendas)}</p>}
+      {map.despesas !== undefined && <p style={{ color:"#ef4444", fontSize:12, margin:"1px 0" }}>Despesas: {fmt(map.despesas)}</p>}
+      {map.lucro    !== undefined && (
+        <p style={{ color: map.lucro >= 0 ? "#10b981" : "#ef4444", fontSize:13, fontWeight:700, marginTop:4, borderTop:"1px solid #2A2A2A", paddingTop:4 }}>
+          Lucro: {fmt(map.lucro)}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ── card wrapper ──────────────────────────────────────────────────────────────
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -123,6 +154,25 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
     <div className="bg-cp-surface border border-cp-border rounded-2xl p-5">
       <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">{title}</h2>
       {children}
+    </div>
+  );
+}
+
+function KpiCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
+  const color = value > 0 ? "text-emerald-400" : value < 0 ? "text-red-400" : "text-gray-500";
+  return (
+    <div className="bg-cp-surface border border-cp-border rounded-2xl p-4">
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className={`text-xl font-bold tabular-nums ${color}`}>{fmt(value)}</p>
+      {sub && <p className="text-xs text-gray-600 mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+function EmptyChart() {
+  return (
+    <div className="flex items-center justify-center h-[180px] text-gray-600 text-sm">
+      Sem dados para exibir ainda
     </div>
   );
 }
@@ -146,12 +196,12 @@ export default function FinanceiroView({
 }) {
   const router = useRouter();
 
-  // Pré-preenche com fechamento de hoje, se já existir
   const todayFechamento = fechamentos.find((f) => f.data === dataHoje);
   const [form, setForm] = useState({
     dinheiro: String(todayFechamento?.valor_dinheiro ?? 0),
     cartao:   String(todayFechamento?.valor_cartao   ?? 0),
     pix:      String(todayFechamento?.valor_pix      ?? 0),
+    despesas: String(todayFechamento?.despesas       ?? 0),
   });
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState<string | null>(null);
@@ -160,7 +210,37 @@ export default function FinanceiroView({
   const dinheiro = parseFloat(form.dinheiro) || 0;
   const cartao   = parseFloat(form.cartao)   || 0;
   const pix      = parseFloat(form.pix)      || 0;
+  const despesas = parseFloat(form.despesas) || 0;
   const total    = dinheiro + cartao + pix + creditoHoje;
+  const lucroHoje = total - despesas;
+
+  // Fechamentos virtuais: substitui entrada de hoje pelos valores atuais do form
+  // para que os KPIs mostrem preview em tempo real antes de salvar
+  const fechamentosVirtual = useMemo((): Fechamento[] => {
+    const semHoje = fechamentos.filter(f => f.data !== dataHoje);
+    return [
+      ...semHoje,
+      {
+        id: "__preview__",
+        data: dataHoje,
+        valor_dinheiro: dinheiro,
+        valor_cartao: cartao,
+        valor_pix: pix,
+        valor_credito: creditoHoje,
+        total,
+        despesas,
+      },
+    ];
+  }, [fechamentos, dataHoje, dinheiro, cartao, pix, creditoHoje, total, despesas]);
+
+  const lucroSemanal = useMemo(
+    () => getLucroAcumulado(fechamentosVirtual, dataHoje, "semana"),
+    [fechamentosVirtual, dataHoje]
+  );
+  const lucroMensal = useMemo(
+    () => getLucroAcumulado(fechamentosVirtual, dataHoje, "mes"),
+    [fechamentosVirtual, dataHoje]
+  );
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -180,6 +260,7 @@ export default function FinanceiroView({
           valor_pix:      pix,
           valor_credito:  creditoHoje,
           total,
+          despesas,
         },
         { onConflict: "cantina_id,data" }
       );
@@ -218,7 +299,6 @@ export default function FinanceiroView({
           saldo_apos: saldoAtual + dinheiro,
         });
       } else if ((existing as any).valor !== dinheiro) {
-        // Valor do dinheiro mudou: atualiza a entrada do caixa
         const delta = dinheiro - (existing as any).valor;
         await supabase
           .from("movimentacoes_caixa")
@@ -234,7 +314,7 @@ export default function FinanceiroView({
 
   // ── dados dos gráficos ──────────────────────────────────────────────────────
 
-  const dailyData = useMemo(() =>
+  const dailyPaymentData = useMemo(() =>
     fechamentos.slice(0, 14).reverse().map((f) => ({
       dia:      fmtShort(f.data),
       dinheiro: f.valor_dinheiro,
@@ -245,10 +325,18 @@ export default function FinanceiroView({
     [fechamentos]
   );
 
+  const dailyResultData = useMemo(() =>
+    fechamentos.slice(0, 14).reverse().map((f) => ({
+      dia:      fmtShort(f.data),
+      vendas:   f.total,
+      despesas: f.despesas,
+      lucro:    f.total - f.despesas,
+    })),
+    [fechamentos]
+  );
+
   const weeklyData  = useMemo(() => groupByWeek(fechamentos),  [fechamentos]);
   const monthlyData = useMemo(() => groupByMonth(fechamentos), [fechamentos]);
-
-  const hasAnyData = fechamentos.length > 0;
 
   // ── render ──────────────────────────────────────────────────────────────────
 
@@ -326,12 +414,42 @@ export default function FinanceiroView({
                 <span className="ml-2 text-xs text-gray-600">do sistema de hoje</span>
               </div>
             </div>
+
+            {/* Despesas do dia */}
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                Despesas do dia (R$)
+                <span className="ml-1.5 text-[10px] text-gray-600 font-normal">ingredientes, embalagens, etc.</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">R$</span>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={form.despesas}
+                  onChange={(e) => setForm((f) => ({ ...f, despesas: e.target.value }))}
+                  className="w-full pl-9 pr-4 py-2.5 bg-cp-elevated border border-cp-border rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Total */}
-          <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-orange-500/10 border border-orange-500/20 mb-4">
-            <span className="text-sm text-gray-300 font-medium">Total do dia</span>
-            <span className="text-xl font-bold text-orange-400 tabular-nums">{fmt(total)}</span>
+          {/* Resumo: Vendas / Despesas / Lucro */}
+          <div className="rounded-xl border border-cp-border overflow-hidden mb-4">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-cp-border">
+              <span className="text-sm text-gray-400">Total de vendas</span>
+              <span className="text-base font-semibold text-orange-400 tabular-nums">{fmt(total)}</span>
+            </div>
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-cp-border">
+              <span className="text-sm text-gray-400">Despesas</span>
+              <span className="text-base font-semibold text-red-400 tabular-nums">− {fmt(despesas)}</span>
+            </div>
+            <div className={`flex items-center justify-between px-4 py-3 ${lucroHoje >= 0 ? "bg-emerald-500/5" : "bg-red-500/5"}`}>
+              <span className="text-sm font-semibold text-gray-300">Lucro do dia</span>
+              <span className={`text-xl font-bold tabular-nums ${lucroHoje >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                {fmt(lucroHoje)}
+              </span>
+            </div>
           </div>
 
           {error   && <p className="text-sm text-red-400 mb-3">{error}</p>}
@@ -347,11 +465,28 @@ export default function FinanceiroView({
         </form>
       </Card>
 
-      {/* ── Gráficos ─────────────────────────────────────────────────────────── */}
+      {/* ── KPIs de lucro acumulado ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard
+          label="Lucro hoje"
+          value={lucroHoje}
+          sub="vendas − despesas de hoje"
+        />
+        <KpiCard
+          label="Lucro esta semana"
+          value={lucroSemanal}
+          sub="acumulado desde segunda-feira"
+        />
+        <KpiCard
+          label="Lucro este mês"
+          value={lucroMensal}
+          sub={`acumulado em ${MONTH_NAMES[parseInt(dataHoje.split("-")[1]) - 1]}`}
+        />
+      </div>
 
-      {/* Vendas por tipo — últimos dias */}
+      {/* ── Gráfico: Vendas por tipo ──────────────────────────────────────────── */}
       <Card title="Vendas por tipo de pagamento — últimos 14 dias">
-        {dailyData.length === 0 ? (
+        {dailyPaymentData.length === 0 ? (
           <EmptyChart />
         ) : (
           <>
@@ -364,7 +499,7 @@ export default function FinanceiroView({
               ))}
             </div>
             <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={dailyData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={22}>
+              <BarChart data={dailyPaymentData} margin={{ top:4, right:4, left:0, bottom:0 }} barSize={22}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
                 <XAxis dataKey="dia" tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `R$${v}`} />
@@ -379,39 +514,98 @@ export default function FinanceiroView({
         )}
       </Card>
 
+      {/* ── Gráfico: Resultado diário ─────────────────────────────────────────── */}
+      <Card title="Resultado diário — últimos 14 dias">
+        {dailyResultData.length === 0 ? (
+          <EmptyChart />
+        ) : (
+          <>
+            <div className="flex flex-wrap gap-4 mb-3">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0 bg-orange-500" />
+                <span className="text-xs text-gray-500">Vendas</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0 bg-red-500" />
+                <span className="text-xs text-gray-500">Despesas</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-sm shrink-0 bg-emerald-500" />
+                <span className="text-xs text-gray-500">Lucro</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={dailyResultData} margin={{ top:4, right:4, left:0, bottom:0 }} barSize={12} barCategoryGap="25%">
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
+                <XAxis dataKey="dia" tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `R$${v}`} />
+                <Tooltip content={<LucroTooltip />} cursor={{ fill:"#2A2A2A" }} />
+                <Bar dataKey="vendas"   fill="#f97316" radius={[4,4,0,0]} />
+                <Bar dataKey="despesas" fill="#ef4444" radius={[4,4,0,0]} />
+                <Bar dataKey="lucro"    fill="#10b981" radius={[4,4,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </>
+        )}
+      </Card>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Fechamento semanal */}
-        <Card title="Fechamento semanal">
+        <Card title="Resultado semanal">
           {weeklyData.length === 0 ? (
             <EmptyChart />
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={weeklyData} margin={{ top:4, right:4, left:0, bottom:0 }} barSize={28}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
-                <XAxis dataKey="semana" tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `R$${v}`} />
-                <Tooltip content={<SimpleTooltip />} cursor={{ fill:"#2A2A2A" }} />
-                <Bar dataKey="total" fill="#f97316" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <>
+              <div className="flex flex-wrap gap-3 mb-3">
+                {[["vendas","#f97316","Vendas"],["despesas","#ef4444","Despesas"],["lucro","#10b981","Lucro"]].map(([k,c,l]) => (
+                  <div key={k} className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: c }} />
+                    <span className="text-xs text-gray-500">{l}</span>
+                  </div>
+                ))}
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={weeklyData} margin={{ top:4, right:4, left:0, bottom:0 }} barSize={10} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
+                  <XAxis dataKey="semana" tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip content={<LucroTooltip />} cursor={{ fill:"#2A2A2A" }} />
+                  <Bar dataKey="vendas"   fill="#f97316" radius={[4,4,0,0]} />
+                  <Bar dataKey="despesas" fill="#ef4444" radius={[4,4,0,0]} />
+                  <Bar dataKey="lucro"    fill="#10b981" radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </>
           )}
         </Card>
 
         {/* Fechamento mensal */}
-        <Card title="Fechamento mensal">
+        <Card title="Resultado mensal">
           {monthlyData.length === 0 ? (
             <EmptyChart />
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={monthlyData} margin={{ top:4, right:4, left:0, bottom:0 }} barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
-                <XAxis dataKey="mes" tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `R$${v}`} />
-                <Tooltip content={<SimpleTooltip />} cursor={{ fill:"#2A2A2A" }} />
-                <Bar dataKey="total" fill="#f97316" radius={[4,4,0,0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <>
+              <div className="flex flex-wrap gap-3 mb-3">
+                {[["vendas","#f97316","Vendas"],["despesas","#ef4444","Despesas"],["lucro","#10b981","Lucro"]].map(([k,c,l]) => (
+                  <div key={k} className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: c }} />
+                    <span className="text-xs text-gray-500">{l}</span>
+                  </div>
+                ))}
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={monthlyData} margin={{ top:4, right:4, left:0, bottom:0 }} barSize={14} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill:"#6b7280", fontSize:11 }} axisLine={false} tickLine={false} width={58} tickFormatter={(v) => `R$${v}`} />
+                  <Tooltip content={<LucroTooltip />} cursor={{ fill:"#2A2A2A" }} />
+                  <Bar dataKey="vendas"   fill="#f97316" radius={[4,4,0,0]} />
+                  <Bar dataKey="despesas" fill="#ef4444" radius={[4,4,0,0]} />
+                  <Bar dataKey="lucro"    fill="#10b981" radius={[4,4,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </>
           )}
         </Card>
       </div>
@@ -430,38 +624,39 @@ export default function FinanceiroView({
                   <th className="text-right pb-3 px-4">Cartão</th>
                   <th className="text-right pb-3 px-4">Pix</th>
                   <th className="text-right pb-3 px-4">Créditos</th>
-                  <th className="text-right pb-3 pl-4">Total</th>
+                  <th className="text-right pb-3 px-4">Vendas</th>
+                  <th className="text-right pb-3 px-4">Despesas</th>
+                  <th className="text-right pb-3 pl-4">Lucro</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cp-border">
-                {fechamentos.map((f) => (
-                  <tr key={f.id} className={`hover:bg-cp-elevated transition-colors ${f.data === dataHoje ? "bg-orange-500/5" : ""}`}>
-                    <td className="py-3 pr-4 font-medium text-white whitespace-nowrap">
-                      {fmtDate(f.data)}
-                      {f.data === dataHoje && (
-                        <span className="ml-2 text-[10px] text-orange-400 font-semibold">hoje</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_dinheiro)}</td>
-                    <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_cartao)}</td>
-                    <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_pix)}</td>
-                    <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_credito)}</td>
-                    <td className="py-3 pl-4 text-right tabular-nums font-semibold text-orange-400">{fmt(f.total)}</td>
-                  </tr>
-                ))}
+                {fechamentos.map((f) => {
+                  const lucro = f.total - f.despesas;
+                  return (
+                    <tr key={f.id} className={`hover:bg-cp-elevated transition-colors ${f.data === dataHoje ? "bg-orange-500/5" : ""}`}>
+                      <td className="py-3 pr-4 font-medium text-white whitespace-nowrap">
+                        {fmtDate(f.data)}
+                        {f.data === dataHoje && (
+                          <span className="ml-2 text-[10px] text-orange-400 font-semibold">hoje</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_dinheiro)}</td>
+                      <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_cartao)}</td>
+                      <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_pix)}</td>
+                      <td className="py-3 px-4 text-right tabular-nums text-gray-300">{fmt(f.valor_credito)}</td>
+                      <td className="py-3 px-4 text-right tabular-nums font-medium text-orange-400">{fmt(f.total)}</td>
+                      <td className="py-3 px-4 text-right tabular-nums text-red-400">{f.despesas > 0 ? `− ${fmt(f.despesas)}` : "—"}</td>
+                      <td className={`py-3 pl-4 text-right tabular-nums font-semibold ${lucro >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {fmt(lucro)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </Card>
-    </div>
-  );
-}
-
-function EmptyChart() {
-  return (
-    <div className="flex items-center justify-center h-[180px] text-gray-600 text-sm">
-      Sem dados para exibir ainda
     </div>
   );
 }

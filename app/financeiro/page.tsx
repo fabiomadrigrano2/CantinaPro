@@ -38,7 +38,7 @@ export default async function FinanceiroPage() {
   const [fechamentosRes, movimentacoesRes] = await Promise.all([
     supabase
       .from("fechamentos_diarios")
-      .select("id, data, valor_dinheiro, valor_cartao, valor_pix, valor_credito, total")
+      .select("id, data, valor_dinheiro, valor_cartao, valor_pix, valor_credito, total, despesas")
       .eq("cantina_id", CANTINA_ID)
       .gte("data", sixMonthsAgo.toISOString().split("T")[0])
       .order("data", { ascending: false }),
