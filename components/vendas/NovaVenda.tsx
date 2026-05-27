@@ -704,6 +704,13 @@ export default function NovaVenda() {
       }
     }
 
+    if (isFiado) {
+      await (supabase as any)
+        .from("contas")
+        .update({ tipo: "fiado" })
+        .eq("aluno_id", selectedAluno.id);
+    }
+
     const { data: pedido, error: pedidoErr } = await supabase
       .from("pedidos")
       .insert({ cantina_id: CANTINA_ID, aluno_id: selectedAluno.id, total } as any)
