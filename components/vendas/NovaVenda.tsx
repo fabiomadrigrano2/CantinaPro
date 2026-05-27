@@ -561,6 +561,13 @@ export default function NovaVenda() {
     });
   }
 
+  function removeFromCart(id: string) {
+    setCart((prev) => {
+      const { [id]: _, ...rest } = prev;
+      return rest;
+    });
+  }
+
   // ── Voz ───────────────────────────────────────────────────────────────────
 
   function processVoiceCommand(transcript: string) {
@@ -891,6 +898,13 @@ export default function NovaVenda() {
                 <p className="text-white font-bold text-sm shrink-0">
                   {fmt(product.preco * qty)}
                 </p>
+                <button
+                  onClick={() => removeFromCart(product.id)}
+                  className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors shrink-0"
+                  aria-label={`Remover ${product.nome}`}
+                >
+                  ×
+                </button>
               </div>
             ))}
           </div>
