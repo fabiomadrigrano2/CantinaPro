@@ -846,7 +846,6 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 </label>
                 <input
                   type="number" step="0.01"
-                  {...(!editingAluno ? { min: "0" } : {})}
                   value={form.saldo_inicial}
                   onChange={(e) => set("saldo_inicial", e.target.value)}
                   className={inputCls}
