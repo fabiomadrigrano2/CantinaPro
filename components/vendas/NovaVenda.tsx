@@ -394,6 +394,7 @@ export default function NovaVenda() {
   const [confirming, setConfirming] = useState(false);
   const [saleError, setSaleError] = useState<string | null>(null);
   const [successName, setSuccessName] = useState("");
+  const [saldoBaixoAviso, setSaldoBaixoAviso] = useState<string | null>(null);
 
   // Voice
   const [listening, setListening] = useState(false);
@@ -520,10 +521,7 @@ export default function NovaVenda() {
 
   const isFiado = selectedAluno?.tipo === "fiado";
   const saldoApos = selectedAluno ? selectedAluno.saldo - total : null;
-  const canConfirm =
-    !!selectedAluno &&
-    cartItems.length > 0 &&
-    (isFiado || (saldoApos ?? -1) >= 0);
+  const canConfirm = !!selectedAluno && cartItems.length > 0;
 
   const totalItens = cartItems.reduce((s, { qty }) => s + qty, 0);
 
@@ -765,6 +763,12 @@ export default function NovaVenda() {
       )
     );
 
+    const aviso =
+      !isFiado && novoSaldo <= 0
+        ? `Atenção! O saldo de ${selectedAluno.nome.split(" ")[0]} zerou. Avise o responsável para recarregar.`
+        : null;
+
+    setSaldoBaixoAviso(aviso);
     setSuccessName(selectedAluno.nome);
     setConfirming(false);
     setPhase("success");
@@ -774,15 +778,16 @@ export default function NovaVenda() {
       setCart({});
       setSaleError(null);
       setVoiceWarning(null);
+      setSaldoBaixoAviso(null);
       setPhase("search");
-    }, 2000);
+    }, aviso ? 4000 : 2000);
   }
 
   // ── SUCCESS ────────────────────────────────────────────────────────────────
 
   if (phase === "success") {
     return (
-      <div className="fixed inset-0 bg-cp-bg flex flex-col items-center justify-center gap-6 z-50">
+      <div className="fixed inset-0 bg-cp-bg flex flex-col items-center justify-center gap-6 z-50 px-5">
         <div className="w-32 h-32 rounded-full bg-emerald-500/10 border-2 border-emerald-500/25 flex items-center justify-center">
           <span className="text-6xl text-emerald-400">✓</span>
         </div>
@@ -790,6 +795,11 @@ export default function NovaVenda() {
           <p className="text-3xl font-bold text-white">Venda confirmada!</p>
           <p className="text-lg text-gray-400">{successName}</p>
         </div>
+        {saldoBaixoAviso && (
+          <div className="w-full max-w-sm px-4 py-3 bg-amber-500/15 border border-amber-500/30 rounded-2xl text-sm text-amber-300 text-center leading-snug">
+            ⚠️ {saldoBaixoAviso}
+          </div>
+        )}
         <div className="flex gap-1.5 mt-2">
           {[0, 1, 2].map((i) => (
             <span
@@ -807,7 +817,7 @@ export default function NovaVenda() {
   // ── CONFIRMAÇÃO DE VOZ ────────────────────────────────────────────────────
 
   if (phase === "voice-confirm") {
-    const voiceCanConfirm = isFiado || (saldoApos ?? -1) >= 0;
+    const voiceCanConfirm = cartItems.length > 0;
 
     return (
       <div className="bg-cp-bg min-h-[100dvh] flex flex-col">
@@ -893,31 +903,19 @@ export default function NovaVenda() {
             </div>
             <div
               className={`flex items-center justify-between px-5 py-4 ${
-                saldoApos! >= 0
-                  ? "bg-emerald-500/5"
-                  : isFiado
-                  ? "bg-amber-500/5"
-                  : "bg-red-500/10"
+                saldoApos! >= 0 ? "bg-emerald-500/5" : "bg-amber-500/5"
               }`}
             >
               <span
                 className={`text-sm ${
-                  saldoApos! >= 0
-                    ? "text-emerald-400"
-                    : isFiado
-                    ? "text-amber-400"
-                    : "text-red-400"
+                  saldoApos! >= 0 ? "text-emerald-400" : "text-amber-400"
                 }`}
               >
                 {saldoApos! < 0 && isFiado ? "Dívida após venda" : "Saldo após venda"}
               </span>
               <span
                 className={`font-bold text-lg ${
-                  saldoApos! >= 0
-                    ? "text-emerald-400"
-                    : isFiado
-                    ? "text-amber-400"
-                    : "text-red-400"
+                  saldoApos! >= 0 ? "text-emerald-400" : "text-amber-400"
                 }`}
               >
                 {fmt(saldoApos!)}
@@ -1322,15 +1320,11 @@ export default function NovaVenda() {
             className={`flex items-center justify-between rounded-xl px-4 py-2.5 text-sm ${
               saldoApos >= 0
                 ? "bg-emerald-500/5 border border-emerald-500/15 text-emerald-400"
-                : isFiado
-                ? "bg-amber-500/5 border border-amber-500/15 text-amber-400"
-                : "bg-red-500/10 border border-red-500/20 text-red-400"
+                : "bg-amber-500/5 border border-amber-500/15 text-amber-400"
             }`}
           >
             <span>
-              {saldoApos < 0 && isFiado
-                ? "Dívida acumulada após venda"
-                : "Saldo após venda"}
+              {saldoApos < 0 && isFiado ? "Dívida acumulada após venda" : "Saldo após venda"}
             </span>
             <span className="font-bold">{fmt(saldoApos)}</span>
           </div>

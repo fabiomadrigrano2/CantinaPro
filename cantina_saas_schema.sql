@@ -470,9 +470,7 @@ BEGIN
 
   v_novo_saldo := v_conta.saldo - NEW.total;
 
-  IF v_conta.tipo = 'credito' AND v_novo_saldo < 0 THEN
-    RAISE EXCEPTION 'Saldo insuficiente. Saldo atual: R$ %', v_conta.saldo;
-  END IF;
+  -- Contas credito podem ficar negativas (sem bloqueio de saldo)
 
   IF v_conta.tipo = 'fiado' AND v_novo_saldo < (v_conta.limite_fiado * -1) THEN
     RAISE EXCEPTION 'Limite de fiado atingido. Limite: R$ %', v_conta.limite_fiado;
