@@ -1,8 +1,22 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import CobrancasList from "@/components/cobrancas/CobrancasList";
+import type { CicloSemana } from "@/types/cobrancas";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+
+function getWeekStart(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Dom, 1=Seg, ..., 6=Sab
+  const diff = day === 0 ? -6 : 1 - day; // deslocar para segunda
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function toDateStr(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
 
 export default async function CobrancasPage() {
   const supabase = createClient();
@@ -27,25 +41,78 @@ export default async function CobrancasPage() {
 
   const alunoIds = (devedores ?? []).map((a: any) => a.id as string);
 
-  let pedidosPorAluno: Record<string, any[]> = {};
-  if (alunoIds.length > 0) {
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  let ciclosSemanaisPorAluno: Record<string, CicloSemana[]> = {};
 
-    const { data: pedidos } = await supabase
-      .from("pedidos")
-      .select("id, aluno_id, total, criado_em, itens_pedido(nome_produto, quantidade)")
-      .eq("cantina_id", CANTINA_ID)
-      .eq("status", "confirmado")
-      .in("aluno_id", alunoIds)
-      .gte("criado_em", thirtyDaysAgo.toISOString())
-      .order("criado_em", { ascending: false })
-      .limit(500);
+  if (alunoIds.length > 0) {
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const [{ data: pedidos }, { data: ciclosDb }] = await Promise.all([
+      supabase
+        .from("pedidos")
+        .select("aluno_id, total, criado_em")
+        .eq("cantina_id", CANTINA_ID)
+        .eq("status", "confirmado")
+        .in("aluno_id", alunoIds)
+        .gte("criado_em", ninetyDaysAgo.toISOString())
+        .order("criado_em", { ascending: true })
+        .limit(1000),
+      supabase
+        .from("ciclos_cobranca")
+        .select("id, aluno_id, semana_inicio, status")
+        .eq("cantina_id", CANTINA_ID)
+        .in("aluno_id", alunoIds),
+    ]);
+
+    // Agrupa pedidos por aluno + semana
+    const semanasPorAluno: Record<
+      string,
+      Record<string, { total: number; semana_fim: string }>
+    > = {};
 
     for (const p of pedidos ?? []) {
       const aid = (p as any).aluno_id as string;
-      if (!pedidosPorAluno[aid]) pedidosPorAluno[aid] = [];
-      pedidosPorAluno[aid].push(p);
+      const inicioDate = getWeekStart(new Date((p as any).criado_em));
+      const fimDate = new Date(inicioDate);
+      fimDate.setDate(inicioDate.getDate() + 6);
+      const inicioStr = toDateStr(inicioDate);
+      const fimStr = toDateStr(fimDate);
+
+      if (!semanasPorAluno[aid]) semanasPorAluno[aid] = {};
+      if (!semanasPorAluno[aid][inicioStr]) {
+        semanasPorAluno[aid][inicioStr] = { total: 0, semana_fim: fimStr };
+      }
+      semanasPorAluno[aid][inicioStr].total += (p as any).total;
+    }
+
+    // Mapa de ciclos existentes por aluno
+    const cicloMapPorAluno: Record<string, Map<string, any>> = {};
+    for (const c of ciclosDb ?? []) {
+      const aid = (c as any).aluno_id as string;
+      if (!cicloMapPorAluno[aid]) cicloMapPorAluno[aid] = new Map();
+      cicloMapPorAluno[aid].set((c as any).semana_inicio, c);
+    }
+
+    const semanaAtualStr = toDateStr(getWeekStart(new Date()));
+
+    for (const alunoId of alunoIds) {
+      const semanas = semanasPorAluno[alunoId] ?? {};
+      const cicloMap = cicloMapPorAluno[alunoId] ?? new Map();
+
+      ciclosSemanaisPorAluno[alunoId] = Object.entries(semanas)
+        .map(([inicioStr, { total, semana_fim }]) => {
+          const cicloExistente = cicloMap.get(inicioStr);
+          return {
+            semana_inicio: inicioStr,
+            semana_fim,
+            total: Math.round(total * 100) / 100,
+            status: (cicloExistente?.status ?? "aberto") as CicloSemana["status"],
+            ciclo_id: cicloExistente?.id ?? null,
+            is_current: inicioStr === semanaAtualStr,
+          };
+        })
+        .filter((c) => c.status !== "cobrado" && c.status !== "pago")
+        .sort((a, b) => a.semana_inicio.localeCompare(b.semana_inicio));
     }
   }
 
@@ -59,7 +126,7 @@ export default async function CobrancasPage() {
       </div>
       <CobrancasList
         initialDevedores={(devedores as any) ?? []}
-        pedidosPorAluno={pedidosPorAluno}
+        ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
         semCredito={(semCredito as any) ?? []}
       />
     </AppLayout>

@@ -1,21 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
+import type { CicloSemana } from "@/types/cobrancas";
+import { marcarCicloComoCobrado } from "@/app/cobrancas/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
-
-type PedidoItem = {
-  nome_produto: string;
-  quantidade: number;
-};
-
-type PedidoExtrato = {
-  id: string;
-  aluno_id: string;
-  total: number;
-  criado_em: string;
-  itens_pedido: PedidoItem[];
-};
 
 type Devedor = {
   id: string;
@@ -40,51 +29,50 @@ type AlunoSemCredito = {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-function proximoCiclo(ciclo: string | null, dia: number | null): string {
-  const hoje = new Date();
-  if (ciclo === "semanal") {
-    const diasAteSexta = (5 - hoje.getDay() + 7) % 7 || 7;
-    const sexta = new Date(hoje);
-    sexta.setDate(hoje.getDate() + diasAteSexta);
-    return sexta.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  }
-  const diaAlvo = dia ?? 5;
-  const candidato = new Date(hoje.getFullYear(), hoje.getMonth(), diaAlvo);
-  if (candidato <= hoje) candidato.setMonth(candidato.getMonth() + 1);
-  return candidato.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+function dataBR(dateStr: string): string {
+  const [, month, day] = dateStr.split("-");
+  return `${day}/${month}`;
 }
 
-function buildMessage(devedor: Devedor, pedidos: PedidoExtrato[]): string {
-  const primeiroNome = devedor.nome.split(" ")[0];
-  const valor = fmt(Math.abs(devedor.saldo));
-  const venc  = proximoCiclo(devedor.ciclo_cobranca, devedor.dia_cobranca);
+function getWeekStartClient(date: Date): Date {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
-  const linhas = pedidos.slice(0, 10).map((p) => {
-    const data  = new Date(p.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-    const itens = p.itens_pedido
-      .map((i) => `${i.quantidade > 1 ? i.quantidade + "x " : ""}${i.nome_produto}`)
-      .join(", ");
-    return `• ${data} — ${itens} — ${fmt(p.total)}`;
+function toDateStrClient(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
+function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
+  const primeiroNome = devedor.nome.split(" ")[0];
+  const totalAberto = fmt(Math.abs(devedor.saldo));
+  const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
+
+  const linhas = ciclos.map((c) => {
+    const inicio = dataBR(c.semana_inicio);
+    const fim = dataBR(c.semana_fim);
+    const isCurrent = c.semana_inicio === semanaAtualStr;
+    return isCurrent
+      ? `• Semana ${inicio} a ${fim}: *${fmt(c.total)}* (semana atual)`
+      : `• Semana ${inicio} a ${fim}: *${fmt(c.total)}* ⚠️ Pendente`;
   });
 
-  const extrato = linhas.length > 0
-    ? `\n\nÚltimas compras:\n${linhas.join("\n")}`
-    : "";
+  const extratoSemanal =
+    linhas.length > 0
+      ? `\n\n📅 *Extrato por semana:*\n${linhas.join("\n")}`
+      : "";
 
   return (
     `Oi! Tudo bem? 😊\n\n` +
-    `Passando pra avisar que *${primeiroNome}* está com *${valor}* em aberto na cantina.` +
-    extrato +
-    `\n\n💰 *Total em aberto: ${valor}*` +
-    `\n📅 *Vencimento: ${venc}*` +
-    `\n\nQualquer dúvida é só chamar! 🙏`
+    `Passando pra avisar que *${primeiroNome}* está com *${totalAberto}* em aberto na cantina.` +
+    extratoSemanal +
+    `\n\n💰 *Total em aberto: ${totalAberto}*\n\n` +
+    `Qualquer dúvida é só chamar! 🙏`
   );
-}
-
-function buildWhatsAppUrl(tel: string, message: string): string {
-  const telClean = tel.replace(/\D/g, "");
-  const base = telClean ? `https://wa.me/55${telClean}` : "https://wa.me/";
-  return `${base}?text=${encodeURIComponent(message)}`;
 }
 
 function buildCreditoMessage(aluno: AlunoSemCredito): string {
@@ -96,10 +84,10 @@ function buildCreditoMessage(aluno: AlunoSemCredito): string {
   );
 }
 
-function cicloBadge(ciclo: string | null) {
-  if (ciclo === "semanal")
-    return { label: "📅 Semanal", cls: "bg-violet-400/10 text-violet-300 border-violet-400/20" };
-  return { label: "🗓️ Mensal", cls: "bg-sky-400/10 text-sky-300 border-sky-400/20" };
+function buildWhatsAppUrl(tel: string, message: string): string {
+  const telClean = tel.replace(/\D/g, "");
+  const base = telClean ? `https://wa.me/55${telClean}` : "https://wa.me/";
+  return `${base}?text=${encodeURIComponent(message)}`;
 }
 
 // ── ícones ────────────────────────────────────────────────────────────────────
@@ -111,7 +99,7 @@ const WHATSAPP_ICON = (
   </svg>
 );
 
-// ── modal de prévia editável ──────────────────────────────────────────────────
+// ── modal de prévia da mensagem ───────────────────────────────────────────────
 
 function ExtratoModal({
   devedor,
@@ -135,7 +123,6 @@ function ExtratoModal({
         className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
           <div>
             <h2 className="text-base font-semibold text-white leading-tight">{devedor.nome}</h2>
@@ -146,9 +133,7 @@ function ExtratoModal({
                   {fmt(Math.abs(devedor.saldo))} em aberto
                 </span>
               ) : (
-                <span className="text-sm font-bold text-amber-400">
-                  Saldo zerado
-                </span>
+                <span className="text-sm font-bold text-amber-400">Saldo zerado</span>
               )}
             </div>
           </div>
@@ -163,11 +148,8 @@ function ExtratoModal({
           </button>
         </div>
 
-        {/* Textarea editável */}
         <div className="p-5 flex flex-col gap-2 flex-1 overflow-hidden">
-          <p className="text-xs text-gray-500 shrink-0">
-            Edite a mensagem antes de enviar:
-          </p>
+          <p className="text-xs text-gray-500 shrink-0">Edite a mensagem antes de enviar:</p>
           <textarea
             value={msg}
             onChange={(e) => setMsg(e.target.value)}
@@ -175,7 +157,6 @@ function ExtratoModal({
           />
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
           <button
             onClick={() => setMsg(initialMessage)}
@@ -207,21 +188,160 @@ function ExtratoModal({
   );
 }
 
+// ── cartão de aluno com ciclos semanais ───────────────────────────────────────
+
+function DevedorCard({
+  devedor,
+  ciclos,
+  onPreview,
+}: {
+  devedor: Devedor;
+  ciclos: CicloSemana[];
+  onPreview: () => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [pendingCiclo, setPendingCiclo] = useState<string | null>(null);
+
+  const temTel = !!(devedor.telefone_responsavel?.replace(/\D/g, ""));
+
+  function handleMarcar(ciclo: CicloSemana) {
+    setPendingCiclo(ciclo.semana_inicio);
+    startTransition(async () => {
+      await marcarCicloComoCobrado({
+        alunoId: devedor.id,
+        semanaInicio: ciclo.semana_inicio,
+        semanaFim: ciclo.semana_fim,
+        total: ciclo.total,
+        cicloId: ciclo.ciclo_id,
+      });
+      setPendingCiclo(null);
+    });
+  }
+
+  const totalCiclos = ciclos.reduce((s, c) => s + c.total, 0);
+  const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
+
+  return (
+    <div className="rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
+      {/* Cabeçalho do aluno */}
+      <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white truncate">{devedor.nome}</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0 ml-4">
+          <span className="text-sm font-bold text-red-400 tabular-nums">
+            {fmt(Math.abs(devedor.saldo))}
+          </span>
+          <button
+            onClick={temTel ? onPreview : undefined}
+            disabled={!temTel}
+            title={temTel ? "Ver prévia e enviar via WhatsApp" : "Cadastre o telefone no perfil do aluno"}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              temTel
+                ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
+                : "bg-gray-700 text-gray-400 cursor-not-allowed"
+            }`}
+          >
+            {WHATSAPP_ICON}
+            <span className="hidden sm:inline">WhatsApp</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Semanas pendentes */}
+      {ciclos.length > 0 ? (
+        <div className="divide-y divide-cp-border">
+          {ciclos.map((ciclo) => {
+            const isLoading = isPending && pendingCiclo === ciclo.semana_inicio;
+            const isCurrent = ciclo.semana_inicio === semanaAtualStr;
+
+            return (
+              <div
+                key={ciclo.semana_inicio}
+                className="flex items-center justify-between gap-4 px-5 py-3"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <span
+                    className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${
+                      isCurrent
+                        ? "bg-blue-400/10 text-blue-300 border-blue-400/20"
+                        : "bg-amber-400/10 text-amber-300 border-amber-400/20"
+                    }`}
+                  >
+                    {isCurrent ? "Atual" : "Pendente"}
+                  </span>
+                  <span className="text-sm text-gray-300 tabular-nums whitespace-nowrap">
+                    {dataBR(ciclo.semana_inicio)} → {dataBR(ciclo.semana_fim)}
+                  </span>
+                  <span className="text-sm font-semibold text-white tabular-nums">
+                    {fmt(ciclo.total)}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => handleMarcar(ciclo)}
+                  disabled={isPending}
+                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
+                    isLoading
+                      ? "opacity-60 cursor-wait border-gray-600 text-gray-400"
+                      : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+                  }`}
+                >
+                  {isLoading ? (
+                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                  Cobrado
+                </button>
+              </div>
+            );
+          })}
+
+          {/* Total dos ciclos */}
+          {ciclos.length > 1 && (
+            <div className="flex items-center justify-end gap-2 px-5 py-2 bg-cp-elevated/50">
+              <span className="text-xs text-gray-500">Total dos ciclos:</span>
+              <span className="text-sm font-bold text-red-400 tabular-nums">
+                {fmt(totalCiclos)}
+              </span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="px-5 py-4">
+          <p className="text-xs text-gray-500">
+            Nenhum pedido nos últimos 90 dias — saldo em aberto de períodos anteriores.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── componente principal ──────────────────────────────────────────────────────
 
 export default function CobrancasList({
   initialDevedores,
-  pedidosPorAluno,
+  ciclosSemanaisPorAluno,
   semCredito,
 }: {
   initialDevedores: Devedor[];
-  pedidosPorAluno: Record<string, PedidoExtrato[]>;
+  ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   semCredito: AlunoSemCredito[];
 }) {
   const [search,      setSearch]      = useState("");
   const [turmaFiltro, setTurmaFiltro] = useState("todas");
   const [preview, setPreview] = useState<{
-    devedor: { nome: string; turma: string | null; saldo: number; telefone_responsavel: string | null };
+    devedor: Devedor;
     initialMessage: string;
   } | null>(null);
 
@@ -261,7 +381,6 @@ export default function CobrancasList({
 
   return (
     <>
-      {/* Modal */}
       {preview && (
         <ExtratoModal
           devedor={preview.devedor}
@@ -304,7 +423,7 @@ export default function CobrancasList({
         </div>
       )}
 
-      {/* Conteúdo */}
+      {/* Lista de devedores — cartões */}
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <span className="text-5xl mb-4">
@@ -317,92 +436,23 @@ export default function CobrancasList({
           </p>
         </div>
       ) : (
-        <div className="rounded-2xl border border-cp-border overflow-hidden">
-          {/* Header */}
-          <div className="hidden md:grid grid-cols-[1fr_100px_130px_110px_130px_110px] gap-4 px-5 py-3 bg-cp-elevated border-b border-cp-border text-xs font-semibold text-gray-500 uppercase tracking-wide">
-            <span>Aluno</span>
-            <span>Turma</span>
-            <span>Saldo devedor</span>
-            <span>Ciclo</span>
-            <span>Próximo venc.</span>
-            <span>Ação</span>
-          </div>
-
-          <div className="divide-y divide-cp-border">
-            {filtered.map((d, i) => {
-              const pedidos = pedidosPorAluno[d.id] ?? [];
-              const badge   = cicloBadge(d.ciclo_cobranca);
-              const venc    = proximoCiclo(d.ciclo_cobranca, d.dia_cobranca);
-              const temTel  = !!(d.telefone_responsavel?.replace(/\D/g, ""));
-
-              const waBtnCls = temTel
-                ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
-                : "bg-gray-700 text-gray-400 cursor-not-allowed";
-              const waTitle  = temTel
-                ? "Ver prévia e enviar via WhatsApp"
-                : "Cadastre o telefone no perfil do aluno";
-
-              const openPreview = () => {
-                if (temTel) setPreview({ devedor: d, initialMessage: buildMessage(d, pedidos) });
-              };
-
-              return (
-                <div
-                  key={d.id ?? i}
-                  className="grid grid-cols-1 md:grid-cols-[1fr_100px_130px_110px_130px_110px] gap-2 md:gap-4 px-5 py-4 bg-cp-surface hover:bg-cp-elevated transition-colors items-center"
-                >
-                  {/* Aluno */}
-                  <div className="flex items-center justify-between md:justify-start gap-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{d.nome}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 md:hidden">{d.turma ?? "—"}</p>
-                    </div>
-                    {/* WhatsApp — mobile */}
-                    <button
-                      onClick={openPreview}
-                      disabled={!temTel}
-                      title={waTitle}
-                      className={`md:hidden shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${waBtnCls}`}
-                    >
-                      {WHATSAPP_ICON}
-                      WhatsApp
-                    </button>
-                  </div>
-
-                  {/* Turma (desktop) */}
-                  <span className="hidden md:block text-sm text-gray-400 truncate">
-                    {d.turma ?? "—"}
-                  </span>
-
-                  {/* Saldo devedor */}
-                  <span className="text-sm font-bold text-red-400 tabular-nums">
-                    {fmt(Math.abs(d.saldo ?? 0))}
-                  </span>
-
-                  {/* Ciclo */}
-                  <span className={`hidden md:inline-flex self-center text-xs px-2 py-0.5 rounded-full border w-fit ${badge.cls}`}>
-                    {badge.label}
-                  </span>
-
-                  {/* Próximo vencimento */}
-                  <span className="hidden md:block text-sm text-gray-400 tabular-nums">
-                    {venc}
-                  </span>
-
-                  {/* WhatsApp — desktop */}
-                  <button
-                    onClick={openPreview}
-                    disabled={!temTel}
-                    title={waTitle}
-                    className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all w-fit ${waBtnCls}`}
-                  >
-                    {WHATSAPP_ICON}
-                    WhatsApp
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+        <div className="flex flex-col gap-4">
+          {filtered.map((devedor) => {
+            const ciclos = ciclosSemanaisPorAluno[devedor.id] ?? [];
+            return (
+              <DevedorCard
+                key={devedor.id}
+                devedor={devedor}
+                ciclos={ciclos}
+                onPreview={() =>
+                  setPreview({
+                    devedor,
+                    initialMessage: buildMessageSemanal(devedor, ciclos),
+                  })
+                }
+              />
+            );
+          })}
         </div>
       )}
 
@@ -437,7 +487,11 @@ export default function CobrancasList({
                   ? "Ver prévia e enviar via WhatsApp"
                   : "Cadastre o telefone no perfil do aluno";
                 const openPreview = () => {
-                  if (temTel) setPreview({ devedor: a, initialMessage: buildCreditoMessage(a) });
+                  if (temTel)
+                    setPreview({
+                      devedor: { ...a, ciclo_cobranca: null, dia_cobranca: null },
+                      initialMessage: buildCreditoMessage(a),
+                    });
                 };
 
                 return (
@@ -445,13 +499,11 @@ export default function CobrancasList({
                     key={a.id ?? i}
                     className="grid grid-cols-1 md:grid-cols-[1fr_100px_130px_110px] gap-2 md:gap-4 px-5 py-4 bg-cp-surface hover:bg-cp-elevated transition-colors items-center"
                   >
-                    {/* Aluno */}
                     <div className="flex items-center justify-between md:justify-start gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-white truncate">{a.nome}</p>
                         <p className="text-xs text-gray-500 mt-0.5 md:hidden">{a.turma ?? "—"}</p>
                       </div>
-                      {/* WhatsApp — mobile */}
                       <button
                         onClick={openPreview}
                         disabled={!temTel}
@@ -463,17 +515,14 @@ export default function CobrancasList({
                       </button>
                     </div>
 
-                    {/* Turma (desktop) */}
                     <span className="hidden md:block text-sm text-gray-400 truncate">
                       {a.turma ?? "—"}
                     </span>
 
-                    {/* Saldo */}
                     <span className={`text-sm font-bold tabular-nums ${a.saldo < 0 ? "text-red-400" : "text-amber-400"}`}>
                       {a.saldo < 0 ? fmt(a.saldo) : "R$ 0,00"}
                     </span>
 
-                    {/* WhatsApp — desktop */}
                     <button
                       onClick={openPreview}
                       disabled={!temTel}
@@ -492,7 +541,8 @@ export default function CobrancasList({
       )}
 
       {/* Aviso coluna telefone */}
-      {(filtered.some((d) => !d.telefone_responsavel) || filteredSemCredito.some((a) => !a.telefone_responsavel)) && (
+      {(filtered.some((d) => !d.telefone_responsavel) ||
+        filteredSemCredito.some((a) => !a.telefone_responsavel)) && (
         <p className="mt-4 text-xs text-gray-600">
           Alunos sem telefone cadastrado aparecem com o botão WhatsApp desabilitado. Edite o aluno em{" "}
           <a href="/alunos" className="text-orange-400 hover:underline">Alunos</a> para adicionar.
