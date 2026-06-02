@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useTransition } from "react";
 import type { CicloSemana } from "@/types/cobrancas";
-import { marcarCicloComoCobrado } from "@/app/cobrancas/actions";
+import { marcarCiclosComoPagos } from "@/app/cobrancas/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -188,6 +188,197 @@ function ExtratoModal({
   );
 }
 
+// ── modal de confirmação de pagamento ────────────────────────────────────────
+
+function ConfirmacaoPagamentoModal({
+  devedor,
+  ciclos,
+  cicloInicialSemana,
+  onClose,
+}: {
+  devedor: Devedor;
+  ciclos: CicloSemana[];
+  cicloInicialSemana: string;
+  onClose: () => void;
+}) {
+  const [selecionados, setSelecionados] = useState<Set<string>>(
+    () => new Set([cicloInicialSemana])
+  );
+  const [formaPagamento, setFormaPagamento] = useState("dinheiro");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
+  const totalSelecionado = ciclos
+    .filter((c) => selecionados.has(c.semana_inicio))
+    .reduce((s, c) => s + c.total, 0);
+
+  function toggleCiclo(semanaInicio: string) {
+    setSelecionados((prev) => {
+      const next = new Set(prev);
+      if (next.has(semanaInicio)) next.delete(semanaInicio);
+      else next.add(semanaInicio);
+      return next;
+    });
+  }
+
+  function handleConfirmar() {
+    const ciclosSelecionados = ciclos
+      .filter((c) => selecionados.has(c.semana_inicio))
+      .map((c) => ({
+        semanaInicio: c.semana_inicio,
+        semanaFim: c.semana_fim,
+        total: c.total,
+        cicloId: c.ciclo_id,
+      }));
+
+    startTransition(async () => {
+      const result = await marcarCiclosComoPagos({
+        alunoId: devedor.id,
+        ciclos: ciclosSelecionados,
+        formaPagamento,
+      });
+      if (result.error) setError(result.error);
+      else onClose();
+    });
+  }
+
+  const formasPagamento = [
+    { id: "dinheiro", label: "Dinheiro" },
+    { id: "pix",      label: "Pix"      },
+    { id: "cartao",   label: "Cartão"   },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Cabeçalho */}
+        <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-white">Registrar Pagamento</h2>
+            <p className="text-sm text-gray-400 mt-0.5">{devedor.nome}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+            aria-label="Fechar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Corpo */}
+        <div className="p-5 flex flex-col gap-3 flex-1 overflow-y-auto">
+          <p className="text-xs text-gray-500 shrink-0">Selecione as semanas pagas:</p>
+
+          {ciclos.map((ciclo) => {
+            const checked = selecionados.has(ciclo.semana_inicio);
+            const isCurrent = ciclo.semana_inicio === semanaAtualStr;
+            return (
+              <label
+                key={ciclo.semana_inicio}
+                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                  checked
+                    ? "bg-emerald-500/10 border-emerald-500/30"
+                    : "bg-cp-elevated border-cp-border hover:border-gray-500"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleCiclo(ciclo.semana_inicio)}
+                  className="w-4 h-4 accent-emerald-500 shrink-0"
+                />
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span
+                    className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${
+                      isCurrent
+                        ? "bg-blue-400/10 text-blue-300 border-blue-400/20"
+                        : "bg-amber-400/10 text-amber-300 border-amber-400/20"
+                    }`}
+                  >
+                    {isCurrent ? "Atual" : "Pendente"}
+                  </span>
+                  <span className="text-sm text-gray-300 whitespace-nowrap">
+                    {dataBR(ciclo.semana_inicio)} → {dataBR(ciclo.semana_fim)}
+                  </span>
+                </div>
+                <span className="text-sm font-semibold text-white tabular-nums shrink-0">
+                  {fmt(ciclo.total)}
+                </span>
+              </label>
+            );
+          })}
+
+          {/* Forma de pagamento */}
+          <div className="mt-1">
+            <p className="text-xs text-gray-500 mb-2">Forma de pagamento:</p>
+            <div className="flex gap-2">
+              {formasPagamento.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFormaPagamento(f.id)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    formaPagamento === f.id
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                      : "bg-cp-elevated border-cp-border text-gray-400 hover:border-gray-500"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+        </div>
+
+        {/* Rodapé */}
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+          <div>
+            <p className="text-xs text-gray-500">Total selecionado</p>
+            <p className="text-base font-bold text-white tabular-nums">{fmt(totalSelecionado)}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmar}
+              disabled={isPending || selecionados.size === 0}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              Confirmar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── cartão de aluno com ciclos semanais ───────────────────────────────────────
 
 function DevedorCard({
@@ -199,131 +390,113 @@ function DevedorCard({
   ciclos: CicloSemana[];
   onPreview: () => void;
 }) {
-  const [isPending, startTransition] = useTransition();
-  const [pendingCiclo, setPendingCiclo] = useState<string | null>(null);
+  const [pagamentoModal, setPagamentoModal] = useState<string | null>(null);
 
   const temTel = !!(devedor.telefone_responsavel?.replace(/\D/g, ""));
-
-  function handleMarcar(ciclo: CicloSemana) {
-    setPendingCiclo(ciclo.semana_inicio);
-    startTransition(async () => {
-      await marcarCicloComoCobrado({
-        alunoId: devedor.id,
-        semanaInicio: ciclo.semana_inicio,
-        semanaFim: ciclo.semana_fim,
-        total: ciclo.total,
-        cicloId: ciclo.ciclo_id,
-      });
-      setPendingCiclo(null);
-    });
-  }
-
-  const totalCiclos = ciclos.reduce((s, c) => s + c.total, 0);
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
+  const totalCiclos = ciclos.reduce((s, c) => s + c.total, 0);
 
   return (
-    <div className="rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
-      {/* Cabeçalho do aluno */}
-      <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{devedor.nome}</p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
-          </p>
+    <>
+      {pagamentoModal !== null && (
+        <ConfirmacaoPagamentoModal
+          devedor={devedor}
+          ciclos={ciclos}
+          cicloInicialSemana={pagamentoModal}
+          onClose={() => setPagamentoModal(null)}
+        />
+      )}
+
+      <div className="rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
+        {/* Cabeçalho do aluno */}
+        <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-white truncate">{devedor.nome}</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
+            </p>
+          </div>
+          <div className="flex items-center gap-3 shrink-0 ml-4">
+            <span className="text-sm font-bold text-red-400 tabular-nums">
+              {fmt(Math.abs(devedor.saldo))}
+            </span>
+            <button
+              onClick={temTel ? onPreview : undefined}
+              disabled={!temTel}
+              title={temTel ? "Ver prévia e enviar via WhatsApp" : "Cadastre o telefone no perfil do aluno"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                temTel
+                  ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
+                  : "bg-gray-700 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {WHATSAPP_ICON}
+              <span className="hidden sm:inline">WhatsApp</span>
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0 ml-4">
-          <span className="text-sm font-bold text-red-400 tabular-nums">
-            {fmt(Math.abs(devedor.saldo))}
-          </span>
-          <button
-            onClick={temTel ? onPreview : undefined}
-            disabled={!temTel}
-            title={temTel ? "Ver prévia e enviar via WhatsApp" : "Cadastre o telefone no perfil do aluno"}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              temTel
-                ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
-                : "bg-gray-700 text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            {WHATSAPP_ICON}
-            <span className="hidden sm:inline">WhatsApp</span>
-          </button>
-        </div>
-      </div>
 
-      {/* Semanas pendentes */}
-      {ciclos.length > 0 ? (
-        <div className="divide-y divide-cp-border">
-          {ciclos.map((ciclo) => {
-            const isLoading = isPending && pendingCiclo === ciclo.semana_inicio;
-            const isCurrent = ciclo.semana_inicio === semanaAtualStr;
+        {/* Semanas pendentes */}
+        {ciclos.length > 0 ? (
+          <div className="divide-y divide-cp-border">
+            {ciclos.map((ciclo) => {
+              const isCurrent = ciclo.semana_inicio === semanaAtualStr;
 
-            return (
-              <div
-                key={ciclo.semana_inicio}
-                className="flex items-center justify-between gap-4 px-5 py-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span
-                    className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${
-                      isCurrent
-                        ? "bg-blue-400/10 text-blue-300 border-blue-400/20"
-                        : "bg-amber-400/10 text-amber-300 border-amber-400/20"
-                    }`}
-                  >
-                    {isCurrent ? "Atual" : "Pendente"}
-                  </span>
-                  <span className="text-sm text-gray-300 tabular-nums whitespace-nowrap">
-                    {dataBR(ciclo.semana_inicio)} → {dataBR(ciclo.semana_fim)}
-                  </span>
-                  <span className="text-sm font-semibold text-white tabular-nums">
-                    {fmt(ciclo.total)}
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => handleMarcar(ciclo)}
-                  disabled={isPending}
-                  className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border ${
-                    isLoading
-                      ? "opacity-60 cursor-wait border-gray-600 text-gray-400"
-                      : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
-                  }`}
+              return (
+                <div
+                  key={ciclo.semana_inicio}
+                  className="flex items-center justify-between gap-4 px-5 py-3"
                 >
-                  {isLoading ? (
-                    <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                    </svg>
-                  ) : (
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span
+                      className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${
+                        isCurrent
+                          ? "bg-blue-400/10 text-blue-300 border-blue-400/20"
+                          : "bg-amber-400/10 text-amber-300 border-amber-400/20"
+                      }`}
+                    >
+                      {isCurrent ? "Atual" : "Pendente"}
+                    </span>
+                    <span className="text-sm text-gray-300 tabular-nums whitespace-nowrap">
+                      {dataBR(ciclo.semana_inicio)} → {dataBR(ciclo.semana_fim)}
+                    </span>
+                    <span className="text-sm font-semibold text-white tabular-nums">
+                      {fmt(ciclo.total)}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={() => setPagamentoModal(ciclo.semana_inicio)}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+                  >
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                  )}
-                  Cobrado
-                </button>
-              </div>
-            );
-          })}
+                    Cobrado
+                  </button>
+                </div>
+              );
+            })}
 
-          {/* Total dos ciclos */}
-          {ciclos.length > 1 && (
-            <div className="flex items-center justify-end gap-2 px-5 py-2 bg-cp-elevated/50">
-              <span className="text-xs text-gray-500">Total dos ciclos:</span>
-              <span className="text-sm font-bold text-red-400 tabular-nums">
-                {fmt(totalCiclos)}
-              </span>
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="px-5 py-4">
-          <p className="text-xs text-gray-500">
-            Nenhum pedido nos últimos 90 dias — saldo em aberto de períodos anteriores.
-          </p>
-        </div>
-      )}
-    </div>
+            {/* Total dos ciclos */}
+            {ciclos.length > 1 && (
+              <div className="flex items-center justify-end gap-2 px-5 py-2 bg-cp-elevated/50">
+                <span className="text-xs text-gray-500">Total dos ciclos:</span>
+                <span className="text-sm font-bold text-red-400 tabular-nums">
+                  {fmt(totalCiclos)}
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="px-5 py-4">
+            <p className="text-xs text-gray-500">
+              Nenhum pedido nos últimos 90 dias — saldo em aberto de períodos anteriores.
+            </p>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
 
