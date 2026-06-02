@@ -253,13 +253,16 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     setPagamentoSaving(true);
     setPagamentoError(null);
     const supabase = createClient();
-    const { error } = await supabase.from("alunos").update({ saldo: 0, conta_paga: true }).eq("id", fiadoAluno.id);
+    const novoSaldo = Math.round((fiadoAluno.saldo + valor) * 100) / 100;
+    const contaPaga = novoSaldo >= 0;
+    const { error } = await supabase.from("alunos").update({ saldo: novoSaldo, conta_paga: contaPaga }).eq("id", fiadoAluno.id);
     if (error) { setPagamentoError(error.message); setPagamentoSaving(false); return; }
-    await supabase.from("contas").update({ saldo: 0 }).eq("aluno_id", fiadoAluno.id);
+    await supabase.from("contas").update({ saldo: novoSaldo, atualizado_em: new Date().toISOString() }).eq("aluno_id", fiadoAluno.id);
+    const obs = pagamentoForm.observacao.trim() || `Pagamento recebido - R$ ${valor.toFixed(2).replace(".", ",")}`;
     await supabase.from("pagamentos").insert({
       cantina_id: CANTINA_ID, aluno_id: fiadoAluno.id, valor,
       forma_pagamento: pagamentoForm.forma_pagamento,
-      observacao: pagamentoForm.observacao.trim() || null,
+      observacao: obs,
       tipo: "fiado",
     });
     setPagamentoSaving(false);
