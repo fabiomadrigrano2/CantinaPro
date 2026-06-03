@@ -53,8 +53,17 @@ export async function marcarCiclosComoPagos({
   if (alunoError || !aluno) return { error: "Aluno não encontrado" };
   if (contaError || !conta) return { error: "Conta não encontrada" };
 
-  const novoSaldoAluno = Math.round((Number(aluno.saldo ?? 0) + totalPago) * 100) / 100;
-  const novoSaldoConta = Math.round((Number(conta.saldo ?? 0) + totalPago) * 100) / 100;
+  const saldoAluno = Number(aluno.saldo ?? 0);
+  const saldoConta = Number(conta.saldo ?? 0);
+
+  // Limita o crédito ao valor da dívida: nunca deixa o saldo ficar positivo
+  const devidoAluno = Math.max(0, -saldoAluno);
+  const devidoConta = Math.max(0, -saldoConta);
+  const creditoAluno = Math.min(totalPago, devidoAluno);
+  const creditoConta = Math.min(totalPago, devidoConta);
+
+  const novoSaldoAluno = Math.round((saldoAluno + creditoAluno) * 100) / 100;
+  const novoSaldoConta = Math.round((saldoConta + creditoConta) * 100) / 100;
 
   const { error: errAluno } = await supabase
     .from("alunos")

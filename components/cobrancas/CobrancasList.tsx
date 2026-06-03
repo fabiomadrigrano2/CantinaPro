@@ -209,9 +209,12 @@ function ConfirmacaoPagamentoModal({
   const [error, setError] = useState<string | null>(null);
 
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
+  const saldoDevedor = Math.abs(devedor.saldo);
   const totalSelecionado = ciclos
     .filter((c) => selecionados.has(c.semana_inicio))
     .reduce((s, c) => s + c.total, 0);
+  const totalEfetivo = Math.min(totalSelecionado, saldoDevedor);
+  const excedeSaldo = totalSelecionado > saldoDevedor + 0.005;
 
   function toggleCiclo(semanaInicio: string) {
     setSelecionados((prev) => {
@@ -345,8 +348,13 @@ function ConfirmacaoPagamentoModal({
         {/* Rodapé */}
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
           <div>
-            <p className="text-xs text-gray-500">Total selecionado</p>
-            <p className="text-base font-bold text-white tabular-nums">{fmt(totalSelecionado)}</p>
+            <p className="text-xs text-gray-500">Total a pagar</p>
+            <p className="text-base font-bold text-white tabular-nums">{fmt(totalEfetivo)}</p>
+            {excedeSaldo && (
+              <p className="text-xs text-amber-400 mt-0.5">
+                Limitado ao saldo devedor ({fmt(saldoDevedor)})
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-3">
             <button
