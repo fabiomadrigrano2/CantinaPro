@@ -33,7 +33,7 @@ export async function marcarCiclosComoPagos({
           semana_inicio: ciclo.semanaInicio,
           semana_fim: ciclo.semanaFim,
           total: ciclo.total,
-          status: "cobrado",
+          status: "pago",
           forma_pagamento: formaPagamento,
         },
         { onConflict: "cantina_id,aluno_id,semana_inicio" }
@@ -44,24 +44,27 @@ export async function marcarCiclosComoPagos({
 
   const totalPago = ciclos.reduce((s, c) => s + c.total, 0);
 
-  const { data: aluno, error: alunoError } = await supabase
-    .from("alunos")
-    .select("saldo")
-    .eq("id", alunoId)
-    .single();
+  const [{ data: aluno, error: alunoError }, { data: conta, error: contaError }] =
+    await Promise.all([
+      supabase.from("alunos").select("saldo").eq("id", alunoId).single(),
+      supabase.from("contas").select("saldo").eq("aluno_id", alunoId).single(),
+    ]);
 
   if (alunoError || !aluno) return { error: "Aluno não encontrado" };
+  if (contaError || !conta) return { error: "Conta não encontrada" };
 
-  const novoSaldo = Math.round(((aluno.saldo ?? 0) + totalPago) * 100) / 100;
+  const novoSaldoAluno = Math.round((Number(aluno.saldo ?? 0) + totalPago) * 100) / 100;
+  const novoSaldoConta = Math.round((Number(conta.saldo ?? 0) + totalPago) * 100) / 100;
 
-  await supabase
+  const { error: errAluno } = await supabase
     .from("alunos")
-    .update({ saldo: novoSaldo })
+    .update({ saldo: novoSaldoAluno })
     .eq("id", alunoId);
+  if (errAluno) return { error: errAluno.message };
 
   await supabase
     .from("contas")
-    .update({ saldo: novoSaldo, atualizado_em: new Date().toISOString() })
+    .update({ saldo: novoSaldoConta, atualizado_em: new Date().toISOString() })
     .eq("aluno_id", alunoId);
 
   revalidatePath("/cobrancas");
