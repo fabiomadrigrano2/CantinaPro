@@ -21,31 +21,50 @@ function toDateStr(d: Date): string {
 export default async function CobrancasPage() {
   const supabase = createClient();
 
+  // 1. Busca alunos devedores (fiado, saldo negativo)
   const { data: devedoresRaw } = await supabase
     .from("alunos")
-    .select("id, nome, turma, saldo, ciclo_cobranca, dia_cobranca, telefone_responsavel, aluno_responsavel(responsaveis(nome))")
+    .select("id, nome, turma, saldo, ciclo_cobranca, dia_cobranca, telefone_responsavel")
     .eq("cantina_id", CANTINA_ID)
     .eq("tipo_conta", "fiado")
     .eq("ativo", true)
     .lt("saldo", 0)
     .order("saldo");
 
-  // Normaliza para achatar o nome do primeiro responsável cadastrado
+  const alunoIdsRaw = (devedoresRaw ?? []).map((a: any) => a.id as string);
+
+  // 2. Busca semCredito e responsáveis em paralelo
+  const [{ data: semCredito }, { data: responsaveisRaw }] = await Promise.all([
+    supabase
+      .from("alunos")
+      .select("id, nome, turma, saldo, telefone_responsavel")
+      .eq("cantina_id", CANTINA_ID)
+      .eq("tipo_conta", "credito")
+      .eq("ativo", true)
+      .lte("saldo", 0)
+      .order("nome"),
+    alunoIdsRaw.length > 0
+      ? supabase
+          .from("aluno_responsavel")
+          .select("aluno_id, responsaveis(nome)")
+          .in("aluno_id", alunoIdsRaw)
+      : Promise.resolve({ data: [] as any[], error: null }),
+  ]);
+
+  // 3. Monta mapa aluno_id → nome do primeiro responsável
+  const respNomeMap = new Map<string, string>();
+  for (const r of (responsaveisRaw ?? []) as any[]) {
+    if (!respNomeMap.has(r.aluno_id) && r.responsaveis?.nome) {
+      respNomeMap.set(r.aluno_id, r.responsaveis.nome);
+    }
+  }
+
   const devedores = (devedoresRaw ?? []).map((a: any) => ({
     ...a,
-    nome_responsavel: a.aluno_responsavel?.[0]?.responsaveis?.nome ?? null,
+    nome_responsavel: respNomeMap.get(a.id) ?? null,
   }));
 
-  const { data: semCredito } = await supabase
-    .from("alunos")
-    .select("id, nome, turma, saldo, telefone_responsavel")
-    .eq("cantina_id", CANTINA_ID)
-    .eq("tipo_conta", "credito")
-    .eq("ativo", true)
-    .lte("saldo", 0)
-    .order("nome");
-
-  const alunoIds = (devedores ?? []).map((a: any) => a.id as string);
+  const alunoIds = devedores.map((a: any) => a.id as string);
 
   let ciclosSemanaisPorAluno: Record<string, CicloSemana[]> = {};
 
