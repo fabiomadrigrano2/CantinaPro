@@ -27,13 +27,38 @@ export async function addResponsavel(
 ): Promise<{ id: string; nome: string; email: string | null; parentesco: string | null } | { error: string }> {
   const supabase = createAdminClient();
 
-  const { data: resp, error: respError } = await supabase
-    .from("responsaveis")
-    .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
-    .select("id, nome, email")
-    .single();
+  // Reutiliza registro existente se o email já estiver cadastrado (evita duplicatas)
+  let resp: { id: string; nome: string; email: string | null };
 
-  if (respError) return { error: respError.message };
+  if (data.email) {
+    const { data: existing } = await supabase
+      .from("responsaveis")
+      .select("id, nome, email")
+      .ilike("email", data.email)
+      .limit(1)
+      .maybeSingle();
+
+    if (existing) {
+      resp = existing;
+    } else {
+      const { data: created, error: createError } = await supabase
+        .from("responsaveis")
+        .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
+        .select("id, nome, email")
+        .single();
+      if (createError) return { error: createError.message };
+      resp = created;
+    }
+  } else {
+    // Sem email: sempre cria novo registro
+    const { data: created, error: createError } = await supabase
+      .from("responsaveis")
+      .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
+      .select("id, nome, email")
+      .single();
+    if (createError) return { error: createError.message };
+    resp = created;
+  }
 
   const { error: linkError } = await supabase
     .from("aluno_responsavel")
