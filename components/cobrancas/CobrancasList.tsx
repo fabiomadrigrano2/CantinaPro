@@ -49,7 +49,8 @@ function toDateStrClient(d: Date): string {
 
 function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
   const primeiroNome = devedor.nome.split(" ")[0];
-  const totalAberto = fmt(Math.abs(devedor.saldo));
+  const totalPendente = ciclos.reduce((s, c) => s + c.total, 0);
+  const totalAberto = fmt(totalPendente > 0 ? totalPendente : Math.abs(devedor.saldo));
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
 
   const linhas = ciclos.map((c) => {
@@ -426,7 +427,7 @@ function DevedorCard({
           </div>
           <div className="flex items-center gap-3 shrink-0 ml-4">
             <span className="text-sm font-bold text-red-400 tabular-nums">
-              {fmt(Math.abs(devedor.saldo))}
+              {fmt(totalCiclos > 0 ? totalCiclos : Math.abs(devedor.saldo))}
             </span>
             <button
               onClick={temTel ? onPreview : undefined}
