@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { addResponsavel, removeResponsavel } from "@/app/alunos/actions";
+import { addResponsavel, removeResponsavel, registrarPagamentoFiado } from "@/app/alunos/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -252,19 +252,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     if (isNaN(valor) || valor <= 0) { setPagamentoError("Informe um valor válido."); return; }
     setPagamentoSaving(true);
     setPagamentoError(null);
-    const supabase = createClient();
-    const novoSaldo = Math.round((fiadoAluno.saldo + valor) * 100) / 100;
-    const contaPaga = novoSaldo >= 0;
-    const { error } = await supabase.from("alunos").update({ saldo: novoSaldo, conta_paga: contaPaga }).eq("id", fiadoAluno.id);
-    if (error) { setPagamentoError(error.message); setPagamentoSaving(false); return; }
-    await supabase.from("contas").update({ saldo: novoSaldo, atualizado_em: new Date().toISOString() }).eq("aluno_id", fiadoAluno.id);
-    const obs = pagamentoForm.observacao.trim() || `Pagamento recebido - R$ ${valor.toFixed(2).replace(".", ",")}`;
-    await supabase.from("pagamentos").insert({
-      cantina_id: CANTINA_ID, aluno_id: fiadoAluno.id, valor,
-      forma_pagamento: pagamentoForm.forma_pagamento,
-      observacao: obs,
-      tipo: "fiado",
+    const result = await registrarPagamentoFiado({
+      alunoId: fiadoAluno.id,
+      valor,
+      formaPagamento: pagamentoForm.forma_pagamento,
+      observacao: pagamentoForm.observacao || null,
     });
+    if (result.error) { setPagamentoError(result.error); setPagamentoSaving(false); return; }
     setPagamentoSaving(false);
     setFiadoAluno(null);
     router.refresh();
