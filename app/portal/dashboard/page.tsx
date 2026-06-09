@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import PortalDashboard from "@/components/portal/PortalDashboard";
 
+export const dynamic = "force-dynamic";
+
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
 export type PedidoItemPortal = {
