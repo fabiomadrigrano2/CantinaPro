@@ -53,9 +53,8 @@ function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
     .filter((c) => c.status !== "pago")
     .reduce((s, c) => s + c.total, 0);
   const saldoDevedor = Math.abs(devedor.saldo);
-  // Nunca exibir mais que o saldo real: ciclos "aberto" podem existir mesmo após
-  // pagamentos parciais feitos fora do sistema de ciclos (ex: pagamento fiado).
-  const totalAberto = fmt(somaCiclos > 0 ? Math.min(somaCiclos, saldoDevedor) : saldoDevedor);
+  const saldoAnterior = saldoDevedor > somaCiclos + 0.005 ? saldoDevedor - somaCiclos : 0;
+  const totalAberto = fmt(saldoDevedor);
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
 
   const linhas = ciclos.map((c) => {
@@ -67,9 +66,13 @@ function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
       : `• Semana ${inicio} a ${fim}: *${fmt(c.total)}* ⚠️ Pendente`;
   });
 
+  const linhaAnterior = saldoAnterior > 0
+    ? `• Saldo anterior: *${fmt(saldoAnterior)}* ⚠️ Pendente\n`
+    : "";
+
   const extratoSemanal =
-    linhas.length > 0
-      ? `\n\n📅 *Extrato por semana:*\n${linhas.join("\n")}`
+    linhas.length > 0 || saldoAnterior > 0
+      ? `\n\n📅 *Extrato:*\n${linhaAnterior}${linhas.join("\n")}`
       : "";
 
   return (
@@ -412,7 +415,9 @@ function DevedorCard({
     .filter((c) => c.status !== "pago")
     .reduce((s, c) => s + c.total, 0);
   const saldoDevedor = Math.abs(devedor.saldo);
-  const totalCiclos = somaCiclos > 0 ? Math.min(somaCiclos, saldoDevedor) : saldoDevedor;
+  // Diferença entre o saldo real e os ciclos visíveis: dívida anterior ao app
+  const saldoAnterior = saldoDevedor > somaCiclos + 0.005 ? saldoDevedor - somaCiclos : 0;
+  const totalItens = ciclos.length + (saldoAnterior > 0 ? 1 : 0);
 
   return (
     <>
@@ -436,7 +441,7 @@ function DevedorCard({
           </div>
           <div className="flex items-center gap-3 shrink-0 ml-4">
             <span className="text-sm font-bold text-red-400 tabular-nums">
-              {fmt(totalCiclos)}
+              {fmt(saldoDevedor)}
             </span>
             <button
               onClick={temTel ? onPreview : undefined}
@@ -455,8 +460,25 @@ function DevedorCard({
         </div>
 
         {/* Semanas pendentes */}
-        {ciclos.length > 0 ? (
+        {totalItens > 0 ? (
           <div className="divide-y divide-cp-border">
+            {/* Linha de saldo anterior quando a dívida supera os ciclos visíveis */}
+            {saldoAnterior > 0 && (
+              <div className="flex items-center justify-between gap-4 px-5 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium bg-purple-400/10 text-purple-300 border-purple-400/20">
+                    Anterior
+                  </span>
+                  <span className="text-sm text-gray-400 whitespace-nowrap">
+                    Saldo anterior
+                  </span>
+                  <span className="text-sm font-semibold text-white tabular-nums">
+                    {fmt(saldoAnterior)}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {ciclos.map((ciclo) => {
               const isCurrent = ciclo.semana_inicio === semanaAtualStr;
 
@@ -496,12 +518,12 @@ function DevedorCard({
               );
             })}
 
-            {/* Total dos ciclos */}
-            {ciclos.length > 1 && (
+            {/* Rodapé de total quando há mais de um item */}
+            {totalItens > 1 && (
               <div className="flex items-center justify-end gap-2 px-5 py-2 bg-cp-elevated/50">
-                <span className="text-xs text-gray-500">Total dos ciclos:</span>
+                <span className="text-xs text-gray-500">Total em aberto:</span>
                 <span className="text-sm font-bold text-red-400 tabular-nums">
-                  {fmt(totalCiclos)}
+                  {fmt(saldoDevedor)}
                 </span>
               </div>
             )}
