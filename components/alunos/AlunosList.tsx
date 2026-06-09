@@ -20,6 +20,7 @@ type AlunoComConta = {
   limite_diario: number | null;
   telefone_responsavel: string | null;
   email_responsavel: string | null;
+  nome_responsavel: string | null;
 };
 
 type Responsavel = {
@@ -82,7 +83,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
   const [form,          setForm]          = useState({
     nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0",
     ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0",
-    telefone_responsavel: "", email_responsavel: "",
+    telefone_responsavel: "", email_responsavel: "", nome_responsavel: "",
   });
   const [responsaveis,   setResponsaveis]   = useState<Responsavel[]>([]);
   const [respForm,       setRespForm]       = useState({ nome: "", email: "", parentesco: "responsavel" });
@@ -130,7 +131,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
 
   function openModal() {
     setEditingAluno(null);
-    setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", telefone_responsavel: "", email_responsavel: "" });
+    setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", telefone_responsavel: "", email_responsavel: "", nome_responsavel: "" });
     setResponsaveis([]);
     setRespForm({ nome: "", email: "", parentesco: "responsavel" });
     setRespError(null);
@@ -150,6 +151,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       limite_diario:        String(aluno.limite_diario ?? 0),
       telefone_responsavel: aluno.telefone_responsavel ?? "",
       email_responsavel:    aluno.email_responsavel    ?? "",
+      nome_responsavel:     aluno.nome_responsavel     ?? "",
     });
     setResponsaveis([]);
     setRespForm({ nome: "", email: "", parentesco: "responsavel" });
@@ -321,6 +323,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           saldo:                parseFloat(form.saldo_inicial) || 0,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
           email_responsavel:    form.email_responsavel.trim()    || null,
+          nome_responsavel:     form.nome_responsavel.trim()     || null,
         })
         .eq("id", editingAluno.id);
 
@@ -344,6 +347,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           saldo:                parseFloat(form.saldo_inicial) || 0,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
           email_responsavel:    form.email_responsavel.trim()    || null,
+          nome_responsavel:     form.nome_responsavel.trim()     || null,
         })
         .select("id")
         .single();
@@ -796,6 +800,19 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                     {savingResp ? "Adicionando..." : "+ Adicionar responsável"}
                   </button>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Nome do responsável
+                </label>
+                <input
+                  type="text"
+                  value={form.nome_responsavel}
+                  onChange={(e) => set("nome_responsavel", e.target.value)}
+                  className={inputCls}
+                  placeholder="Ex: Maria Silva"
+                />
               </div>
 
               <div>

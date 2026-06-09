@@ -260,6 +260,7 @@ export type Database = {
           limite_diario: number | null;
           telefone_responsavel: string | null;
           email_responsavel: string | null;
+          nome_responsavel: string | null;
         };
         Insert: {
           id?: string;
@@ -279,6 +280,7 @@ export type Database = {
           limite_diario?: number | null;
           telefone_responsavel?: string | null;
           email_responsavel?: string | null;
+          nome_responsavel?: string | null;
         };
         Update: {
           id?: string;
@@ -298,6 +300,7 @@ export type Database = {
           limite_diario?: number | null;
           telefone_responsavel?: string | null;
           email_responsavel?: string | null;
+          nome_responsavel?: string | null;
         };
         Relationships: [
           {
