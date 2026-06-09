@@ -92,7 +92,7 @@ export default async function PortalDashboardPage() {
   // Step 2: fetch aluno directly by id
   const { data: alunoRaw, error: alunoError } = await admin
     .from("alunos")
-    .select("id, nome, turma_id, saldo, tipo_conta, limite_diario, turmas(nome)")
+    .select("id, nome, turma, saldo, tipo_conta, limite_diario")
     .eq("id", alunoId)
     .maybeSingle();
 
@@ -102,7 +102,7 @@ export default async function PortalDashboardPage() {
   }
 
   const alunoNome: string        = alunoRaw.nome;
-  const turmaNome: string | null = (alunoRaw.turmas as any)?.nome ?? null;
+  const turmaNome: string | null = (alunoRaw as any).turma ?? null;
 
   // contas table is the canonical ledger; alunos.saldo is the denormalized fallback
   const { data: conta } = await admin
