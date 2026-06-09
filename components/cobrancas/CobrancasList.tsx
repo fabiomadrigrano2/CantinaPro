@@ -709,7 +709,7 @@ export default function CobrancasList({
                 const openPreview = () => {
                   if (temTel)
                     setPreview({
-                      devedor: { ...a, ciclo_cobranca: null, dia_cobranca: null },
+                      devedor: { ...a, ciclo_cobranca: null, dia_cobranca: null, nome_responsavel: null },
                       initialMessage: buildCreditoMessage(a),
                     });
                 };
