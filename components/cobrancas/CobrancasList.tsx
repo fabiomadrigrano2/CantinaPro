@@ -49,8 +49,13 @@ function toDateStrClient(d: Date): string {
 
 function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
   const primeiroNome = devedor.nome.split(" ")[0];
-  const totalPendente = ciclos.reduce((s, c) => s + c.total, 0);
-  const totalAberto = fmt(totalPendente > 0 ? totalPendente : Math.abs(devedor.saldo));
+  const somaCiclos = ciclos
+    .filter((c) => c.status !== "pago")
+    .reduce((s, c) => s + c.total, 0);
+  const saldoDevedor = Math.abs(devedor.saldo);
+  // Nunca exibir mais que o saldo real: ciclos "aberto" podem existir mesmo após
+  // pagamentos parciais feitos fora do sistema de ciclos (ex: pagamento fiado).
+  const totalAberto = fmt(somaCiclos > 0 ? Math.min(somaCiclos, saldoDevedor) : saldoDevedor);
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
 
   const linhas = ciclos.map((c) => {
@@ -403,7 +408,11 @@ function DevedorCard({
 
   const temTel = !!(devedor.telefone_responsavel?.replace(/\D/g, ""));
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
-  const totalCiclos = ciclos.reduce((s, c) => s + c.total, 0);
+  const somaCiclos = ciclos
+    .filter((c) => c.status !== "pago")
+    .reduce((s, c) => s + c.total, 0);
+  const saldoDevedor = Math.abs(devedor.saldo);
+  const totalCiclos = somaCiclos > 0 ? Math.min(somaCiclos, saldoDevedor) : saldoDevedor;
 
   return (
     <>
@@ -427,7 +436,7 @@ function DevedorCard({
           </div>
           <div className="flex items-center gap-3 shrink-0 ml-4">
             <span className="text-sm font-bold text-red-400 tabular-nums">
-              {fmt(totalCiclos > 0 ? totalCiclos : Math.abs(devedor.saldo))}
+              {fmt(totalCiclos)}
             </span>
             <button
               onClick={temTel ? onPreview : undefined}
