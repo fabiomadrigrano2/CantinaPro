@@ -275,25 +275,29 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     setSavingResp(true);
     setRespError(null);
 
-    if (editingAluno) {
-      const result = await addResponsavel(editingAluno.id, {
-        nome:       respForm.nome.trim(),
-        email:      respForm.email.trim() || null,
-        parentesco: respForm.parentesco || null,
-      });
-      if ("error" in result) { setSavingResp(false); setRespError(result.error); return; }
-      setResponsaveis((prev) => [...prev, result]);
-    } else {
-      setResponsaveis((prev) => [...prev, {
-        id:         `tmp-${Date.now()}`,
-        nome:       respForm.nome.trim(),
-        email:      respForm.email.trim() || null,
-        parentesco: respForm.parentesco || null,
-      }]);
+    try {
+      if (editingAluno) {
+        const result = await addResponsavel(editingAluno.id, {
+          nome:       respForm.nome.trim(),
+          email:      respForm.email.trim() || null,
+          parentesco: respForm.parentesco || null,
+        });
+        if ("error" in result) { setRespError(result.error); return; }
+        setResponsaveis((prev) => [...prev, result]);
+      } else {
+        setResponsaveis((prev) => [...prev, {
+          id:         `tmp-${Date.now()}`,
+          nome:       respForm.nome.trim(),
+          email:      respForm.email.trim() || null,
+          parentesco: respForm.parentesco || null,
+        }]);
+      }
+      setRespForm({ nome: "", email: "", parentesco: "responsavel" });
+    } catch (err: any) {
+      setRespError(err?.message ?? "Erro inesperado ao adicionar responsável.");
+    } finally {
+      setSavingResp(false);
     }
-
-    setRespForm({ nome: "", email: "", parentesco: "responsavel" });
-    setSavingResp(false);
   }
 
   async function handleRemoveResponsavel(resp: Responsavel) {

@@ -47,6 +47,7 @@ export async function addResponsavel(
         .select("id, nome, email")
         .single();
       if (createError) return { error: createError.message };
+      if (!created) return { error: "Falha ao criar responsável: nenhum registro retornado." };
       resp = created;
     }
   } else {
@@ -57,6 +58,7 @@ export async function addResponsavel(
       .select("id, nome, email")
       .single();
     if (createError) return { error: createError.message };
+    if (!created) return { error: "Falha ao criar responsável: nenhum registro retornado." };
     resp = created;
   }
 
