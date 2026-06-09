@@ -54,24 +54,40 @@ function buildWeeklyData(
 export default async function PortalDashboardPage() {
   const supabase = createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
-  console.log("[dashboard] getUser:", user?.email ?? null, "error:", userError?.message ?? null);
+  console.log("[dashboard] user.id:", user?.id ?? null);
+  console.log("[dashboard] user.email:", user?.email ?? null);
+  console.log("[dashboard] userError:", userError?.message ?? null);
   if (!user) redirect("/portal/login");
 
   const admin = createAdminClient();
 
+  // DEBUG: busca sem filtro de cantina para ver todos os registros com esse email
+  const { data: respAll, error: respAllError } = await admin
+    .from("responsaveis")
+    .select("id, email, cantina_id")
+    .ilike("email", user.email!);
+  console.log("[dashboard] DEBUG responsaveis sem filtro cantina:", JSON.stringify(respAll), "error:", respAllError?.message ?? null);
+
   // Find responsavel by email (admin bypasses RLS)
   const { data: responsavel, error: respError } = await admin
     .from("responsaveis")
-    .select("id")
+    .select("id, email, cantina_id")
     .ilike("email", user.email!)
     .eq("cantina_id", CANTINA_ID)
     .limit(1)
     .maybeSingle();
 
-  console.log("[dashboard] responsavel:", responsavel?.id ?? null, "error:", respError?.message ?? null);
+  console.log("[dashboard] responsavel com filtro cantina:", JSON.stringify(responsavel), "error:", respError?.message ?? null);
   if (!responsavel) {
     return <div style={{ padding: "2rem" }}>Conta não encontrada. Contacte a cantina.</div>;
   }
+
+  // DEBUG: busca todos os vínculos deste responsavel (sem limit)
+  const { data: linksAll, error: linksAllError } = await admin
+    .from("aluno_responsavel")
+    .select("aluno_id, responsavel_id")
+    .eq("responsavel_id", responsavel.id);
+  console.log("[dashboard] DEBUG aluno_responsavel (todos):", JSON.stringify(linksAll), "error:", linksAllError?.message ?? null);
 
   // Step 1: get aluno_id from aluno_responsavel (no join — avoids permission issues on alunos)
   const { data: link, error: linkError } = await admin
@@ -81,11 +97,11 @@ export default async function PortalDashboardPage() {
     .limit(1)
     .maybeSingle();
 
-  console.log("[dashboard] link aluno_responsavel:", link?.aluno_id ?? null, "error:", linkError?.message ?? null);
+  console.log("[dashboard] link (maybeSingle):", JSON.stringify(link), "error:", linkError?.message ?? null);
 
   const alunoId: string = link?.aluno_id ?? "";
   if (!alunoId) {
-    console.log("[dashboard] sem aluno_id — sem aluno vinculado");
+    console.log("[dashboard] QUEBROU AQUI — alunoId vazio. responsavel.id:", responsavel.id, "linksAll:", JSON.stringify(linksAll));
     return <div style={{ padding: "2rem" }}>Nenhum aluno vinculado a esta conta. Contacte a cantina.</div>;
   }
 
