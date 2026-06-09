@@ -21,14 +21,20 @@ function toDateStr(d: Date): string {
 export default async function CobrancasPage() {
   const supabase = createClient();
 
-  const { data: devedores } = await supabase
+  const { data: devedoresRaw } = await supabase
     .from("alunos")
-    .select("id, nome, turma, saldo, ciclo_cobranca, dia_cobranca, telefone_responsavel")
+    .select("id, nome, turma, saldo, ciclo_cobranca, dia_cobranca, telefone_responsavel, aluno_responsavel(responsaveis(nome))")
     .eq("cantina_id", CANTINA_ID)
     .eq("tipo_conta", "fiado")
     .eq("ativo", true)
     .lt("saldo", 0)
     .order("saldo");
+
+  // Normaliza para achatar o nome do primeiro responsável cadastrado
+  const devedores = (devedoresRaw ?? []).map((a: any) => ({
+    ...a,
+    nome_responsavel: a.aluno_responsavel?.[0]?.responsaveis?.nome ?? null,
+  }));
 
   const { data: semCredito } = await supabase
     .from("alunos")

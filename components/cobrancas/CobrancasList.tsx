@@ -14,6 +14,7 @@ type Devedor = {
   ciclo_cobranca: string | null;
   dia_cobranca: number | null;
   telefone_responsavel: string | null;
+  nome_responsavel: string | null;
 };
 
 type AlunoSemCredito = {
@@ -48,40 +49,46 @@ function toDateStrClient(d: Date): string {
 }
 
 function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
-  const primeiroNome = devedor.nome.split(" ")[0];
+  const nomeResp  = devedor.nome_responsavel ?? devedor.nome.split(" ")[0];
+  const nomeAluno = devedor.nome;
+
   const somaCiclos = ciclos
     .filter((c) => c.status !== "pago")
     .reduce((s, c) => s + c.total, 0);
-  const saldoDevedor = Math.abs(devedor.saldo);
+  const saldoDevedor  = Math.abs(devedor.saldo);
   const saldoAnterior = saldoDevedor > somaCiclos + 0.005 ? saldoDevedor - somaCiclos : 0;
-  const totalAberto = fmt(saldoDevedor);
-  const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
 
-  const linhas = ciclos.map((c) => {
-    const inicio = dataBR(c.semana_inicio);
-    const fim = dataBR(c.semana_fim);
-    const isCurrent = c.semana_inicio === semanaAtualStr;
-    return isCurrent
-      ? `• Semana ${inicio} a ${fim}: *${fmt(c.total)}* (semana atual)`
-      : `• Semana ${inicio} a ${fim}: *${fmt(c.total)}* ⚠️ Pendente`;
-  });
+  const cicloAtual  = ciclos.find((c) => c.is_current);
+  const valorAtual  = cicloAtual?.total ?? 0;
+  const valorPassado =
+    ciclos.filter((c) => !c.is_current).reduce((s, c) => s + c.total, 0) +
+    saldoAnterior;
 
-  const linhaAnterior = saldoAnterior > 0
-    ? `• Saldo anterior: *${fmt(saldoAnterior)}* ⚠️ Pendente\n`
-    : "";
+  const pix       = `Minha chave pix é meu celular 11958890917`;
+  const fechamento = `\nMuito obrigado ! Ótimo final de semana !`;
+  const saudacao  = `Boa Tarde ${nomeResp} tudo bem com você?\n`;
 
-  const extratoSemanal =
-    linhas.length > 0 || saldoAnterior > 0
-      ? `\n\n📅 *Extrato:*\n${linhaAnterior}${linhas.join("\n")}`
-      : "";
+  let corpo: string;
 
-  return (
-    `Oi! Tudo bem? 😊\n\n` +
-    `Passando pra avisar que *${primeiroNome}* está com *${totalAberto}* em aberto na cantina.` +
-    extratoSemanal +
-    `\n\n💰 *Total em aberto: ${totalAberto}*\n\n` +
-    `Qualquer dúvida é só chamar! 🙏`
-  );
+  if (valorAtual > 0 && valorPassado === 0) {
+    // Apenas semana atual — aluno adimplente
+    corpo =
+      `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.\n` +
+      pix;
+  } else if (valorAtual > 0 && valorPassado > 0) {
+    // Semana atual + semanas anteriores em aberto
+    corpo =
+      `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.\n` +
+      `Somado ao valor da(s) semana(s) passada(s) (${fmt(valorPassado)}), totaliza ${fmt(saldoDevedor)}\n` +
+      pix;
+  } else {
+    // Sem ciclo na semana atual — apenas dívida de semanas anteriores
+    corpo =
+      `O(a) ${nomeAluno} tem ${fmt(saldoDevedor)} em aberto na cantina referente a semana(s) anterior(es).\n` +
+      pix;
+  }
+
+  return saudacao + corpo + fechamento;
 }
 
 function buildCreditoMessage(aluno: AlunoSemCredito): string {
