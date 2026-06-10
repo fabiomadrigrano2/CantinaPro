@@ -35,7 +35,8 @@ function ResetPasswordContent() {
 
     console.log("[reset-password] type:", type, "access_token presente:", !!accessToken);
 
-    if (!accessToken || !refreshToken || type !== "recovery") {
+    // Aceita type=recovery (esqueci a senha) e type=invite (primeiro acesso via Supabase SMTP)
+    if (!accessToken || !refreshToken || (type !== "recovery" && type !== "invite")) {
       setStep("error");
       return;
     }
