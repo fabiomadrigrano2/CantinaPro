@@ -33,7 +33,7 @@ export async function verifyResponsavel(
 
 export async function solicitarSenhaTemporaria(
   email: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; link?: string }> {
   console.log("[solicitarSenha] email recebido:", email);
   const emailNorm = email.toLowerCase().trim();
   const admin = createAdminClient();
@@ -47,110 +47,66 @@ export async function solicitarSenhaTemporaria(
     .limit(1)
     .maybeSingle();
 
-  if (!responsavel) return { ok: true }; // não revela se o e-mail existe
+  if (!responsavel) return { ok: true };
 
-  // 2. Cria conta no Auth se for primeiro acesso (ignora erro "already exists")
-  const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
+  // 2. Cria conta no Auth se ainda não existir (ignora erro "already exists")
+  const { error: createError } = await admin.auth.admin.createUser({
     email: emailNorm,
     email_confirm: true,
   });
-  const isPrimeiroAcesso = !createError;
-  console.log("[solicitarSenha] createUser result:", JSON.stringify({
-    userId: createdUser?.user?.id ?? null,
-    errorMessage: createError?.message ?? null,
-    errorStatus: (createError as any)?.status ?? null,
-    errorCode: (createError as any)?.code ?? null,
-    errorFull: createError ? JSON.stringify(createError) : null,
-  }));
+  console.log("[solicitarSenha] createUser:", createError?.message ?? "ok");
 
   const h = headers();
   const host      = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto     = h.get("x-forwarded-proto") ?? "http";
   const redirectTo = `${proto}://${host}/portal/reset-password`;
 
-  // 3. Envia o link de acesso
-  //    — Com Resend (domínio verificado): generateLink recovery + Resend
-  //    — Sem Resend: inviteUserByEmail para primeiro acesso (Supabase SMTP)
-  //                  resetPasswordForEmail para usuários existentes
+  // 3. Gera o link de recovery diretamente (não depende do SMTP do Supabase)
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email: emailNorm,
+    options: { redirectTo },
+  });
 
-  const hasResend = !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM);
+  console.log("[solicitarSenha] generateLink:", linkError?.message ?? "ok",
+    "action_link presente:", !!linkData?.properties?.action_link);
 
-  if (hasResend) {
-    // Caminho A: Resend com domínio verificado
-    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-      type: "recovery",
-      email: emailNorm,
-      options: { redirectTo },
-    });
+  if (linkError || !linkData?.properties?.action_link) {
+    return { ok: false, error: `Erro ao gerar link: ${linkError?.message ?? "resposta vazia"}` };
+  }
 
-    if (linkError || !linkData?.properties?.action_link) {
-      console.error("[solicitarSenha] generateLink falhou:", linkError?.message);
-      return { ok: false, error: "Erro ao gerar link de recuperação." };
-    }
+  const actionLink = linkData.properties.action_link;
 
+  // 4. Envia por e-mail se Resend estiver configurado com domínio verificado
+  if (process.env.RESEND_API_KEY && process.env.RESEND_FROM) {
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
     const { error: sendError } = await resend.emails.send({
-      from: process.env.RESEND_FROM!,
-      to:   emailNorm,
-      subject: isPrimeiroAcesso
-        ? "Bem-vindo ao Portal CantinaPro — Crie sua senha"
-        : "Redefinição de senha — CantinaPro",
+      from:    process.env.RESEND_FROM,
+      to:      emailNorm,
+      subject: "Acesso ao Portal CantinaPro",
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-          <h2>${isPrimeiroAcesso ? "Primeiro acesso ao portal" : "Redefinição de senha"}</h2>
-          <p>Clique no botão abaixo para ${isPrimeiroAcesso ? "criar sua senha" : "redefinir sua senha"}. O link expira em 1 hora.</p>
-          <a href="${linkData.properties.action_link}"
+          <h2>Acesso ao Portal</h2>
+          <p>Clique no botão abaixo para definir sua senha. O link expira em 1 hora.</p>
+          <a href="${actionLink}"
              style="display:inline-block;margin:16px 0;padding:12px 24px;background:#16a34a;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
-            ${isPrimeiroAcesso ? "Criar senha" : "Redefinir senha"}
+            Acessar portal
           </a>
-          <p style="color:#666;font-size:13px">Se não solicitou, ignore este e-mail.</p>
         </div>
       `,
     });
-
     if (sendError) {
       console.error("[solicitarSenha] Resend falhou:", JSON.stringify(sendError));
-      return { ok: false, error: `Erro ao enviar e-mail: ${(sendError as any).message ?? "erro desconhecido"}` };
+      return { ok: false, error: `Erro Resend: ${(sendError as any).message ?? "desconhecido"}` };
     }
-
     console.log("[solicitarSenha] e-mail enviado via Resend para:", emailNorm);
     return { ok: true };
   }
 
-  // Caminho B: sem Resend — usa Supabase SMTP
-  console.log("[solicitarSenha] caminho B — isPrimeiroAcesso:", isPrimeiroAcesso, "redirectTo:", redirectTo);
-  if (isPrimeiroAcesso) {
-    // inviteUserByEmail envia via Supabase SMTP; a página de reset aceita type=invite
-    const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(emailNorm, {
-      redirectTo,
-    });
-    console.log("[solicitarSenha] inviteUserByEmail result:", JSON.stringify({
-      userId: inviteData?.user?.id ?? null,
-      errorMessage: inviteError?.message ?? null,
-      errorStatus: (inviteError as any)?.status ?? null,
-      errorCode: (inviteError as any)?.code ?? null,
-      errorFull: inviteError ? JSON.stringify(inviteError) : null,
-    }));
-    if (inviteError) {
-      return { ok: false, error: `Erro ao enviar convite: ${inviteError.message}` };
-    }
-  } else {
-    // Usuário já tem conta — resetPasswordForEmail funciona para usuários existentes
-    const { error: resetError } = await admin.auth.resetPasswordForEmail(emailNorm, {
-      redirectTo,
-    });
-    console.log("[solicitarSenha] resetPasswordForEmail result:", JSON.stringify({
-      errorMessage: resetError?.message ?? null,
-      errorStatus: (resetError as any)?.status ?? null,
-      errorFull: resetError ? JSON.stringify(resetError) : null,
-    }));
-    if (resetError) {
-      return { ok: false, error: `Erro ao enviar e-mail: ${resetError.message}` };
-    }
-  }
-
-  return { ok: true };
+  // Sem Resend: retorna o link para exibição na tela (modo de teste)
+  console.log("[solicitarSenha] sem Resend — retornando link para exibição na tela");
+  return { ok: true, link: actionLink };
 }
 
 export async function atualizarLimiteDiario(

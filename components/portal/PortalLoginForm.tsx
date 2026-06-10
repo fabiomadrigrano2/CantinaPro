@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { verifyResponsavel, solicitarSenhaTemporaria } from "@/app/portal/login/actions";
 import { createClient } from "@/lib/supabase/client";
 
-type Step = "login" | "solicitar" | "enviado";
+type Step = "login" | "solicitar" | "enviado" | "link_direto";
 
 export default function PortalLoginForm() {
   const router = useRouter();
@@ -14,6 +14,7 @@ export default function PortalLoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accessLink, setAccessLink] = useState<string | null>(null);
 
   async function handleLogin(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,6 +62,11 @@ export default function PortalLoginForm() {
         setError(result.error ?? "Ocorreu um erro. Tente novamente.");
         return;
       }
+      if (result.link) {
+        setAccessLink(result.link);
+        setStep("link_direto");
+        return;
+      }
       setStep("enviado");
     } catch {
       setLoading(false);
@@ -87,6 +93,39 @@ export default function PortalLoginForm() {
             setError(null);
           }}
           className="text-sm text-blue-400 hover:text-blue-300 underline transition pt-2 block mx-auto"
+        >
+          Voltar ao login
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "link_direto" && accessLink) {
+    return (
+      <div className="space-y-4">
+        <div className="text-center space-y-1">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-500/15 border border-amber-500/30 mb-2">
+            <span className="text-2xl">🔗</span>
+          </div>
+          <h2 className="text-lg font-semibold text-white">Link gerado</h2>
+          <p className="text-xs text-amber-400">Modo de teste — e-mail não configurado</p>
+        </div>
+        <p className="text-sm text-gray-400 text-center">
+          Clique no link abaixo para definir sua senha:
+        </p>
+        <a
+          href={accessLink}
+          className="block w-full text-center py-2.5 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg transition text-sm"
+        >
+          Acessar portal e definir senha
+        </a>
+        <div className="rounded-lg bg-cp-elevated border border-cp-border px-3 py-2">
+          <p className="text-xs text-gray-500 mb-1">URL do link (para copiar):</p>
+          <p className="text-xs text-gray-300 break-all font-mono">{accessLink}</p>
+        </div>
+        <button
+          onClick={() => { setStep("login"); setAccessLink(null); setError(null); }}
+          className="w-full text-center text-sm text-gray-500 hover:text-gray-300 transition"
         >
           Voltar ao login
         </button>
