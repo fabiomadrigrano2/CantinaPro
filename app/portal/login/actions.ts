@@ -74,10 +74,13 @@ export async function solicitarSenhaTemporaria(
   const actionLink = linkData.properties.action_link;
   console.log("[solicitarSenha] link gerado para:", emailNorm);
 
-  // Envia o email via Resend (onboarding@resend.dev funciona sem verificar domínio)
+  // RESEND_FROM deve ser um endereço de domínio verificado no Resend.
+  // Ex: "CantinaPro <noreply@seudominio.com>"
+  // Se não configurado, cai no sender de teste (só funciona para o próprio e-mail da conta Resend).
+  const resendFrom = process.env.RESEND_FROM ?? "CantinaPro <onboarding@resend.dev>";
   const resend = new Resend(process.env.RESEND_API_KEY);
   const { error: sendError } = await resend.emails.send({
-    from: "CantinaPro <onboarding@resend.dev>",
+    from: resendFrom,
     to: emailNorm,
     subject: "Redefinição de senha — CantinaPro",
     html: `
@@ -95,8 +98,9 @@ export async function solicitarSenhaTemporaria(
   });
 
   if (sendError) {
-    console.error("[solicitarSenha] Resend falhou:", sendError.message);
-    return { ok: false, error: "Erro ao enviar e-mail. Tente novamente." };
+    console.error("[solicitarSenha] Resend falhou:", JSON.stringify(sendError));
+    const detail = (sendError as any).message ?? JSON.stringify(sendError);
+    return { ok: false, error: `Erro ao enviar e-mail: ${detail}` };
   }
 
   return { ok: true };

@@ -25,22 +25,39 @@ export async function addResponsavel(
   alunoId: string,
   data: { nome: string; email: string | null; parentesco: string | null }
 ): Promise<{ id: string; nome: string; email: string | null; parentesco: string | null } | { error: string }> {
-  const supabase = createAdminClient();
+  try {
+    const supabase = createAdminClient();
 
-  // Reutiliza registro existente se o email já estiver cadastrado (evita duplicatas)
-  let resp: { id: string; nome: string; email: string | null };
+    // Reutiliza registro existente se o email já estiver cadastrado (evita duplicatas)
+    let resp: { id: string; nome: string; email: string | null };
 
-  if (data.email) {
-    const { data: existing } = await supabase
-      .from("responsaveis")
-      .select("id, nome, email")
-      .ilike("email", data.email)
-      .limit(1)
-      .maybeSingle();
+    if (data.email) {
+      const { data: existing, error: existingError } = await supabase
+        .from("responsaveis")
+        .select("id, nome, email")
+        .ilike("email", data.email)
+        .limit(1)
+        .maybeSingle();
 
-    if (existing) {
-      resp = existing;
+      if (existingError) {
+        console.error("[addResponsavel] ilike query error:", existingError.message);
+        return { error: existingError.message };
+      }
+
+      if (existing) {
+        resp = existing;
+      } else {
+        const { data: created, error: createError } = await supabase
+          .from("responsaveis")
+          .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
+          .select("id, nome, email")
+          .single();
+        if (createError) return { error: createError.message };
+        if (!created) return { error: "Falha ao criar responsável: nenhum registro retornado." };
+        resp = created;
+      }
     } else {
+      // Sem email: sempre cria novo registro
       const { data: created, error: createError } = await supabase
         .from("responsaveis")
         .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
@@ -50,25 +67,23 @@ export async function addResponsavel(
       if (!created) return { error: "Falha ao criar responsável: nenhum registro retornado." };
       resp = created;
     }
-  } else {
-    // Sem email: sempre cria novo registro
-    const { data: created, error: createError } = await supabase
-      .from("responsaveis")
-      .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
-      .select("id, nome, email")
-      .single();
-    if (createError) return { error: createError.message };
-    if (!created) return { error: "Falha ao criar responsável: nenhum registro retornado." };
-    resp = created;
+
+    const { error: linkError } = await supabase
+      .from("aluno_responsavel")
+      .insert({ aluno_id: alunoId, responsavel_id: resp.id, parentesco: data.parentesco });
+
+    if (linkError) return { error: linkError.message };
+
+    return {
+      id:         resp.id,
+      nome:       resp.nome,
+      email:      resp.email,
+      parentesco: data.parentesco,
+    };
+  } catch (err: any) {
+    console.error("[addResponsavel] exceção inesperada:", err?.message ?? err);
+    return { error: err?.message ?? "Erro inesperado ao adicionar responsável." };
   }
-
-  const { error: linkError } = await supabase
-    .from("aluno_responsavel")
-    .insert({ aluno_id: alunoId, responsavel_id: resp.id, parentesco: data.parentesco });
-
-  if (linkError) return { error: linkError.message };
-
-  return { ...resp, parentesco: data.parentesco };
 }
 
 export async function removeResponsavel(

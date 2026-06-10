@@ -282,6 +282,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           email:      respForm.email.trim() || null,
           parentesco: respForm.parentesco || null,
         });
+        if (!result) { setRespError("Resposta inesperada do servidor. Tente novamente."); return; }
         if ("error" in result) { setRespError(result.error); return; }
         setResponsaveis((prev) => [...prev, result]);
       } else {
