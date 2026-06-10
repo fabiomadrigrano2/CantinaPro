@@ -50,15 +50,18 @@ export async function solicitarSenhaTemporaria(
   if (!responsavel) return { ok: true }; // não revela se o e-mail existe
 
   // 2. Cria conta no Auth se for primeiro acesso (ignora erro "already exists")
-  const { error: createError } = await admin.auth.admin.createUser({
+  const { data: createdUser, error: createError } = await admin.auth.admin.createUser({
     email: emailNorm,
     email_confirm: true,
   });
   const isPrimeiroAcesso = !createError;
-  if (createError && !createError.message.toLowerCase().includes("already")) {
-    console.error("[solicitarSenha] createUser falhou:", createError.message);
-  }
-  console.log("[solicitarSenha] isPrimeiroAcesso:", isPrimeiroAcesso, createError?.message ?? "");
+  console.log("[solicitarSenha] createUser result:", JSON.stringify({
+    userId: createdUser?.user?.id ?? null,
+    errorMessage: createError?.message ?? null,
+    errorStatus: (createError as any)?.status ?? null,
+    errorCode: (createError as any)?.code ?? null,
+    errorFull: createError ? JSON.stringify(createError) : null,
+  }));
 
   const h = headers();
   const host      = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
@@ -116,26 +119,35 @@ export async function solicitarSenhaTemporaria(
   }
 
   // Caminho B: sem Resend — usa Supabase SMTP
+  console.log("[solicitarSenha] caminho B — isPrimeiroAcesso:", isPrimeiroAcesso, "redirectTo:", redirectTo);
   if (isPrimeiroAcesso) {
-    // inviteUserByEmail cria + envia via Supabase SMTP; a página de reset aceita type=invite
-    const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(emailNorm, {
+    // inviteUserByEmail envia via Supabase SMTP; a página de reset aceita type=invite
+    const { data: inviteData, error: inviteError } = await admin.auth.admin.inviteUserByEmail(emailNorm, {
       redirectTo,
     });
+    console.log("[solicitarSenha] inviteUserByEmail result:", JSON.stringify({
+      userId: inviteData?.user?.id ?? null,
+      errorMessage: inviteError?.message ?? null,
+      errorStatus: (inviteError as any)?.status ?? null,
+      errorCode: (inviteError as any)?.code ?? null,
+      errorFull: inviteError ? JSON.stringify(inviteError) : null,
+    }));
     if (inviteError) {
-      console.error("[solicitarSenha] inviteUserByEmail falhou:", inviteError.message);
       return { ok: false, error: `Erro ao enviar convite: ${inviteError.message}` };
     }
-    console.log("[solicitarSenha] convite enviado via Supabase SMTP para:", emailNorm);
   } else {
     // Usuário já tem conta — resetPasswordForEmail funciona para usuários existentes
     const { error: resetError } = await admin.auth.resetPasswordForEmail(emailNorm, {
       redirectTo,
     });
+    console.log("[solicitarSenha] resetPasswordForEmail result:", JSON.stringify({
+      errorMessage: resetError?.message ?? null,
+      errorStatus: (resetError as any)?.status ?? null,
+      errorFull: resetError ? JSON.stringify(resetError) : null,
+    }));
     if (resetError) {
-      console.error("[solicitarSenha] resetPasswordForEmail falhou:", resetError.message);
       return { ok: false, error: `Erro ao enviar e-mail: ${resetError.message}` };
     }
-    console.log("[solicitarSenha] e-mail de reset enviado via Supabase para:", emailNorm);
   }
 
   return { ok: true };
