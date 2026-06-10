@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { Resend } from "resend";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
@@ -47,11 +46,10 @@ export async function solicitarSenhaTemporaria(
     .limit(1)
     .maybeSingle();
 
-  // Always return ok:true to prevent email enumeration
+  // Sempre retorna ok:true para não revelar se o e-mail existe
   if (!responsavel) return { ok: true };
 
   // Garante que o usuário existe no auth (cria se for primeiro acesso)
-  // 422 = já existe — ignoramos e seguimos para enviar o reset
   await admin.auth.admin.createUser({ email: emailNorm, email_confirm: true });
 
   const h = headers();
@@ -59,50 +57,19 @@ export async function solicitarSenhaTemporaria(
   const proto = h.get("x-forwarded-proto") ?? "http";
   const redirectTo = `${proto}://${host}/portal/reset-password`;
 
-  // Gera o link de reset via admin SDK (não dispara email — só retorna a URL)
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "recovery",
-    email: emailNorm,
-    options: { redirectTo },
+  // Usa o envio de e-mail nativo do Supabase (não requer domínio verificado).
+  // Quando houver domínio verificado no Resend, configurar RESEND_API_KEY +
+  // RESEND_FROM e substituir por generateLink + resend.emails.send.
+  const { error: resetError } = await admin.auth.resetPasswordForEmail(emailNorm, {
+    redirectTo,
   });
 
-  if (linkError || !linkData?.properties?.action_link) {
-    console.error("[solicitarSenha] generateLink falhou:", linkError?.message);
-    return { ok: false, error: "Erro ao gerar link de recuperação. Tente novamente." };
+  if (resetError) {
+    console.error("[solicitarSenha] resetPasswordForEmail falhou:", resetError.message);
+    return { ok: false, error: `Erro ao enviar e-mail: ${resetError.message}` };
   }
 
-  const actionLink = linkData.properties.action_link;
-  console.log("[solicitarSenha] link gerado para:", emailNorm);
-
-  // RESEND_FROM deve ser um endereço de domínio verificado no Resend.
-  // Ex: "CantinaPro <noreply@seudominio.com>"
-  // Se não configurado, cai no sender de teste (só funciona para o próprio e-mail da conta Resend).
-  const resendFrom = process.env.RESEND_FROM ?? "CantinaPro <onboarding@resend.dev>";
-  const resend = new Resend(process.env.RESEND_API_KEY);
-  const { error: sendError } = await resend.emails.send({
-    from: resendFrom,
-    to: emailNorm,
-    subject: "Redefinição de senha — CantinaPro",
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#1a1a1a">Redefinição de senha</h2>
-        <p>Você solicitou a redefinição da sua senha na CantinaPro.</p>
-        <p>Clique no botão abaixo para criar uma nova senha. O link expira em 1 hora.</p>
-        <a href="${actionLink}"
-           style="display:inline-block;margin:16px 0;padding:12px 24px;background:#16a34a;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
-          Redefinir senha
-        </a>
-        <p style="color:#666;font-size:13px">Se você não solicitou a redefinição, ignore este e-mail.</p>
-      </div>
-    `,
-  });
-
-  if (sendError) {
-    console.error("[solicitarSenha] Resend falhou:", JSON.stringify(sendError));
-    const detail = (sendError as any).message ?? JSON.stringify(sendError);
-    return { ok: false, error: `Erro ao enviar e-mail: ${detail}` };
-  }
-
+  console.log("[solicitarSenha] e-mail enviado via Supabase para:", emailNorm);
   return { ok: true };
 }
 
