@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -186,6 +187,8 @@ export default function FinanceiroView({
   cantinaId,
   saldoCaixa,
   movimentacoesCaixa,
+  totalFornecedoresHoje,
+  totalFornecedoresMes,
 }: {
   creditoHoje: number;
   dataHoje: string;
@@ -193,6 +196,8 @@ export default function FinanceiroView({
   cantinaId: string;
   saldoCaixa: number;
   movimentacoesCaixa: Movimentacao[];
+  totalFornecedoresHoje: number;
+  totalFornecedoresMes: number;
 }) {
   const router = useRouter();
 
@@ -609,6 +614,30 @@ export default function FinanceiroView({
           )}
         </Card>
       </div>
+
+      {/* ── Fornecedores ─────────────────────────────────────────────────────── */}
+      <Card title="Fornecedores">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="rounded-xl border border-cp-border px-4 py-3">
+            <p className="text-xs text-gray-500 mb-1">Pago hoje</p>
+            <p className="text-lg font-bold text-red-400 tabular-nums">
+              {totalFornecedoresHoje > 0 ? `− ${fmt(totalFornecedoresHoje)}` : fmt(0)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-cp-border px-4 py-3">
+            <p className="text-xs text-gray-500 mb-1">Pago este mês</p>
+            <p className="text-lg font-bold text-red-400 tabular-nums">
+              {totalFornecedoresMes > 0 ? `− ${fmt(totalFornecedoresMes)}` : fmt(0)}
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/fornecedores"
+          className="text-sm text-orange-400 hover:text-orange-300 font-medium transition"
+        >
+          Ver fornecedores →
+        </Link>
+      </Card>
 
       {/* ── Histórico ────────────────────────────────────────────────────────── */}
       <Card title="Histórico de fechamentos">

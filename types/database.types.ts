@@ -905,6 +905,98 @@ export type Database = {
         };
         Relationships: [];
       };
+      fornecedores: {
+        Row: {
+          id: string;
+          cantina_id: string;
+          nome: string;
+          telefone: string | null;
+          produtos_fornecidos: string | null;
+          frequencia_entrega: Database["public"]["Enums"]["frequencia_entrega_tipo"];
+          observacoes: string | null;
+          ativo: boolean;
+          criado_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          cantina_id: string;
+          nome: string;
+          telefone?: string | null;
+          produtos_fornecidos?: string | null;
+          frequencia_entrega?: Database["public"]["Enums"]["frequencia_entrega_tipo"];
+          observacoes?: string | null;
+          ativo?: boolean;
+          criado_em?: string | null;
+        };
+        Update: {
+          id?: string;
+          cantina_id?: string;
+          nome?: string;
+          telefone?: string | null;
+          produtos_fornecidos?: string | null;
+          frequencia_entrega?: Database["public"]["Enums"]["frequencia_entrega_tipo"];
+          observacoes?: string | null;
+          ativo?: boolean;
+          criado_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fornecedores_cantina_id_fkey";
+            columns: ["cantina_id"];
+            referencedRelation: "cantinas";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      compras_fornecedores: {
+        Row: {
+          id: string;
+          cantina_id: string;
+          fornecedor_id: string;
+          data_entrega: string;
+          descricao: string;
+          valor: number;
+          status_pagamento: Database["public"]["Enums"]["compra_status_pagamento"];
+          data_vencimento: string | null;
+          criado_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          cantina_id: string;
+          fornecedor_id: string;
+          data_entrega: string;
+          descricao: string;
+          valor: number;
+          status_pagamento?: Database["public"]["Enums"]["compra_status_pagamento"];
+          data_vencimento?: string | null;
+          criado_em?: string | null;
+        };
+        Update: {
+          id?: string;
+          cantina_id?: string;
+          fornecedor_id?: string;
+          data_entrega?: string;
+          descricao?: string;
+          valor?: number;
+          status_pagamento?: Database["public"]["Enums"]["compra_status_pagamento"];
+          data_vencimento?: string | null;
+          criado_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "compras_fornecedores_cantina_id_fkey";
+            columns: ["cantina_id"];
+            referencedRelation: "cantinas";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "compras_fornecedores_fornecedor_id_fkey";
+            columns: ["fornecedor_id"];
+            referencedRelation: "fornecedores";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -930,6 +1022,8 @@ export type Database = {
       pagamento_status: "pendente" | "confirmado" | "cancelado";
       ciclo_cobranca: "semanal" | "mensal";
       cobranca_status: "pendente" | "enviada" | "paga" | "vencida";
+      frequencia_entrega_tipo: "diaria" | "semanal" | "quinzenal" | "mensal";
+      compra_status_pagamento: "pago" | "a_pagar";
     };
   };
 };

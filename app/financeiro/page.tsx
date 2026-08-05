@@ -35,7 +35,9 @@ export default async function FinanceiroPage() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  const [fechamentosRes, movimentacoesRes] = await Promise.all([
+  const inicioMes = dataHoje.slice(0, 7) + "-01";
+
+  const [fechamentosRes, movimentacoesRes, comprasFornecedoresRes] = await Promise.all([
     supabase
       .from("fechamentos_diarios")
       .select("id, data, valor_dinheiro, valor_cartao, valor_pix, valor_credito, total, despesas")
@@ -49,11 +51,27 @@ export default async function FinanceiroPage() {
       .eq("cantina_id", CANTINA_ID)
       .order("criado_em", { ascending: false })
       .limit(100),
+
+    supabase
+      .from("compras_fornecedores")
+      .select("valor, data_entrega")
+      .eq("cantina_id", CANTINA_ID)
+      .eq("status_pagamento", "pago")
+      .gte("data_entrega", inicioMes)
+      .lte("data_entrega", dataHoje),
   ]);
 
   const movimentacoes = movimentacoesRes.data ?? [];
   // saldo_apos da movimentação mais recente = saldo atual
   const saldoCaixa: number = movimentacoes[0]?.saldo_apos ?? 0;
+
+  const comprasFornecedoresMes = comprasFornecedoresRes.data ?? [];
+  const totalFornecedoresMes: number = comprasFornecedoresMes.reduce(
+    (s, c) => s + (c.valor ?? 0), 0
+  );
+  const totalFornecedoresHoje: number = comprasFornecedoresMes
+    .filter((c) => c.data_entrega === dataHoje)
+    .reduce((s, c) => s + (c.valor ?? 0), 0);
 
   return (
     <AppLayout>
@@ -68,6 +86,8 @@ export default async function FinanceiroPage() {
         cantinaId={CANTINA_ID}
         saldoCaixa={saldoCaixa}
         movimentacoesCaixa={movimentacoes}
+        totalFornecedoresHoje={totalFornecedoresHoje}
+        totalFornecedoresMes={totalFornecedoresMes}
       />
     </AppLayout>
   );
