@@ -40,11 +40,14 @@ export default async function HistoricoPage({
       id,
       criado_em,
       total,
+      status,
+      cancelado_por_nome,
+      cancelado_em,
       alunos ( nome, turma, tipo_conta ),
       itens_pedido ( nome_produto, quantidade, preco_unitario, produtos ( nome ) )
     `)
     .eq("cantina_id", CANTINA_ID)
-    .eq("status", "confirmado")
+    .in("status", ["confirmado", "cancelado"])
     .gte("criado_em", start)
     .lt("criado_em", end)
     .order("criado_em", { ascending: false });

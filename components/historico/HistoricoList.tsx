@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { cancelarPedido } from "@/app/historico/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -16,6 +17,9 @@ type Pedido = {
   id: string;
   criado_em: string;
   total: number;
+  status: string;
+  cancelado_por_nome: string | null;
+  cancelado_em: string | null;
   alunos: { nome: string; turma: string | null; tipo_conta: string | null } | null;
   itens_pedido: ItemPedido[];
 };
@@ -88,7 +92,10 @@ export default function HistoricoList({
   }, [initialPedidos, search, turmaFiltro]);
 
   const totalGeral = useMemo(
-    () => filtered.reduce((s, p) => s + (p.total ?? 0), 0),
+    () =>
+      filtered
+        .filter((p) => p.status !== "cancelado")
+        .reduce((s, p) => s + (p.total ?? 0), 0),
     [filtered]
   );
 
@@ -96,8 +103,35 @@ export default function HistoricoList({
     timeZone: "America/Sao_Paulo",
   }).format(new Date());
 
+  const [pedidoParaCancelar, setPedidoParaCancelar] = useState<Pedido | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   function toggleExpand(id: string) {
     setExpandedId((prev) => (prev === id ? null : id));
+  }
+
+  function abrirCancelamento(p: Pedido) {
+    setCancelError(null);
+    setPedidoParaCancelar(p);
+  }
+
+  async function confirmarCancelamento() {
+    if (!pedidoParaCancelar) return;
+    setCancelling(true);
+    setCancelError(null);
+
+    const { error } = await cancelarPedido(pedidoParaCancelar.id);
+
+    if (error) {
+      setCancelError(error);
+      setCancelling(false);
+      return;
+    }
+
+    setCancelling(false);
+    setPedidoParaCancelar(null);
+    router.refresh();
   }
 
   return (
@@ -171,7 +205,10 @@ export default function HistoricoList({
           {/* Rows */}
           <div className="divide-y divide-cp-border">
             {filtered.map((p) => {
-              const badge      = tipoBadge(p.alunos?.tipo_conta ?? null);
+              const isCancelado = p.status === "cancelado";
+              const badge = isCancelado
+                ? { label: "Cancelado", cls: "bg-red-500/10 text-red-400 border-red-500/30" }
+                : tipoBadge(p.alunos?.tipo_conta ?? null);
               const isExpanded = expandedId === p.id;
 
               return (
@@ -183,6 +220,8 @@ export default function HistoricoList({
                     onClick={() => toggleExpand(p.id)}
                     onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && toggleExpand(p.id)}
                     className={`grid grid-cols-1 md:grid ${GRID} gap-1 md:gap-4 px-5 py-4 cursor-pointer select-none transition-colors ${
+                      isCancelado ? "opacity-50" : ""
+                    } ${
                       isExpanded ? "bg-cp-elevated" : "bg-cp-surface hover:bg-cp-elevated"
                     }`}
                   >
@@ -216,7 +255,11 @@ export default function HistoricoList({
                     </span>
 
                     {/* Total */}
-                    <span className="md:text-right text-sm font-bold text-orange-400 tabular-nums self-center">
+                    <span
+                      className={`md:text-right text-sm font-bold tabular-nums self-center ${
+                        isCancelado ? "text-gray-500 line-through" : "text-orange-400"
+                      }`}
+                    >
                       {fmt(p.total ?? 0)}
                     </span>
 
@@ -285,11 +328,40 @@ export default function HistoricoList({
                             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide self-center">
                               Total do pedido
                             </span>
-                            <span className="text-sm font-bold text-orange-400 tabular-nums text-right">
+                            <span
+                              className={`text-sm font-bold tabular-nums text-right ${
+                                isCancelado ? "text-gray-500 line-through" : "text-orange-400"
+                              }`}
+                            >
                               {fmt(p.total ?? 0)}
                             </span>
                           </div>
                         </div>
+
+                        {/* Ação de cancelamento / info de cancelamento */}
+                        {isCancelado ? (
+                          <p className="mt-4 text-xs text-gray-500">
+                            Cancelado por{" "}
+                            <span className="text-gray-400 font-medium">
+                              {p.cancelado_por_nome ?? "—"}
+                            </span>
+                            {p.cancelado_em && ` às ${formatHoraExata(p.cancelado_em)}`}
+                          </p>
+                        ) : isHoje ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirCancelamento(p);
+                            }}
+                            className="mt-4 px-4 py-2 rounded-xl border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
+                          >
+                            Cancelar venda
+                          </button>
+                        ) : (
+                          <p className="mt-4 text-xs text-gray-600">
+                            Só é possível cancelar vendas no mesmo dia.
+                          </p>
+                        )}
                       </div>
                     </div>
                   )}
@@ -304,6 +376,54 @@ export default function HistoricoList({
               Total{turmaFiltro !== "todas" || search ? " (filtrado)" : ""}
             </span>
             <span className="text-sm font-bold text-orange-400 tabular-nums">{fmt(totalGeral)}</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── modal de confirmação de cancelamento ── */}
+      {pedidoParaCancelar && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-5"
+          onClick={() => !cancelling && setPedidoParaCancelar(null)}
+        >
+          <div
+            className="w-full max-w-sm bg-cp-surface border border-cp-border rounded-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-lg font-bold text-white mb-2">Cancelar venda?</h2>
+            <p className="text-sm text-gray-400 leading-snug mb-4">
+              A venda de{" "}
+              <span className="text-white font-medium">
+                {pedidoParaCancelar.alunos?.nome ?? "—"}
+              </span>{" "}
+              no valor de{" "}
+              <span className="text-white font-medium">{fmt(pedidoParaCancelar.total ?? 0)}</span>{" "}
+              será marcada como cancelada e o valor será estornado ao saldo do aluno. Esta ação
+              não pode ser desfeita.
+            </p>
+
+            {cancelError && (
+              <div className="mb-4 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5 text-xs text-red-400 text-center">
+                {cancelError}
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPedidoParaCancelar(null)}
+                disabled={cancelling}
+                className="flex-1 py-3 rounded-xl font-semibold text-sm border-2 border-cp-border text-gray-400 hover:text-white hover:border-cp-muted transition-colors disabled:opacity-40"
+              >
+                Voltar
+              </button>
+              <button
+                onClick={confirmarCancelamento}
+                disabled={cancelling}
+                className="flex-1 py-3 rounded-xl font-semibold text-sm bg-red-500 hover:bg-red-600 active:scale-[.98] text-white transition-all disabled:opacity-60"
+              >
+                {cancelling ? "Cancelando..." : "Confirmar cancelamento"}
+              </button>
+            </div>
           </div>
         </div>
       )}

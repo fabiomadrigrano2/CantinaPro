@@ -551,6 +551,9 @@ export type Database = {
           total: number;
           observacao: string | null;
           criado_em: string | null;
+          cancelado_por: string | null;
+          cancelado_por_nome: string | null;
+          cancelado_em: string | null;
         };
         Insert: {
           id?: string;
@@ -561,6 +564,9 @@ export type Database = {
           total?: number;
           observacao?: string | null;
           criado_em?: string | null;
+          cancelado_por?: string | null;
+          cancelado_por_nome?: string | null;
+          cancelado_em?: string | null;
         };
         Update: {
           id?: string;
@@ -571,6 +577,9 @@ export type Database = {
           total?: number;
           observacao?: string | null;
           criado_em?: string | null;
+          cancelado_por?: string | null;
+          cancelado_por_nome?: string | null;
+          cancelado_em?: string | null;
         };
         Relationships: [
           {
