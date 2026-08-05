@@ -145,17 +145,17 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     supabase.auth.getUser(),
 
-    // Totais de vendas (para métricas 1 e 4)
+    // Totais de vendas (para métricas 1 e 4) — só pedidos confirmados, excluindo cancelados
     supabase.from("pedidos").select("total")
-      .eq("cantina_id", CANTINA_ID).gte("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", todayISO),
     supabase.from("pedidos").select("total")
-      .eq("cantina_id", CANTINA_ID).gte("created_at", yesterdayISO).lt("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", yesterdayISO).lt("created_at", todayISO),
 
-    // Contagem de pedidos (métrica 2)
+    // Contagem de pedidos (métrica 2) — mesma regra: exclui cancelados
     supabase.from("pedidos").select("id", { count: "exact", head: true })
-      .eq("cantina_id", CANTINA_ID).gte("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", todayISO),
     supabase.from("pedidos").select("id", { count: "exact", head: true })
-      .eq("cantina_id", CANTINA_ID).gte("created_at", yesterdayISO).lt("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", yesterdayISO).lt("created_at", todayISO),
 
     // Alunos com saldo baixo ≤ R$ 10 (métrica 3 + seção de alertas)
     supabase.from("contas").select("saldo, alunos(nome, turma)")
