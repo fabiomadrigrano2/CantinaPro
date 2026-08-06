@@ -41,3 +41,10 @@ CREATE POLICY "fornecedores por cantina" ON fornecedores
 
 CREATE POLICY "compras_fornecedores por cantina" ON compras_fornecedores
   FOR ALL USING (cantina_id = minha_cantina_id());
+
+-- Sem isso, o Postgres nega acesso à tabela antes mesmo do RLS ser avaliado
+-- (GRANT e RLS são camadas independentes — ver migration_fechamentos_diarios.sql).
+GRANT ALL ON TABLE fornecedores         TO service_role;
+GRANT ALL ON TABLE fornecedores         TO authenticated;
+GRANT ALL ON TABLE compras_fornecedores TO service_role;
+GRANT ALL ON TABLE compras_fornecedores TO authenticated;
