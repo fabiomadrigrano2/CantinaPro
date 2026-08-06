@@ -44,6 +44,16 @@ function fmtDate(iso: string) {
   return new Date(y, m - 1, d).toLocaleDateString("pt-BR");
 }
 
+const MESES_PT = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+function nomeMesAtual(hoje: string): string {
+  const mes = Number(hoje.slice(5, 7));
+  return MESES_PT[mes - 1];
+}
+
 function statusBadge(c: Compra, hoje: string) {
   if (c.status_pagamento === "pago")
     return { label: "Pago", cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
@@ -192,7 +202,7 @@ export default function FornecedorDetail({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
         <div className="bg-cp-surface border border-cp-border rounded-2xl p-5">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-            Total comprado este mês
+            Total comprado em {nomeMesAtual(hoje)}
           </p>
           <p className="text-2xl font-bold text-orange-400 tabular-nums">{fmt(totalMes)}</p>
         </div>
