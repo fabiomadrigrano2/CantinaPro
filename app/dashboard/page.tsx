@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import AppLayout from "@/components/layout/AppLayout";
 import CardapioDoDia from "@/components/dashboard/CardapioDoDia";
 import Link from "next/link";
@@ -146,7 +147,8 @@ function AlunoRow({
 // ── página ────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
-  const supabase = createClient();
+  const supabase      = createClient();
+  const supabaseAdmin = createAdminClient();
 
   // Limites de data em UTC
   const now          = new Date();
@@ -194,11 +196,13 @@ export default async function DashboardPage() {
     supabase.from("contas").select("saldo, alunos(nome, turma)")
       .eq("cantina_id", CANTINA_ID).eq("tipo", "fiado").lte("saldo", 0).order("saldo").limit(50),
 
-    // Cardápio do dia — sem embed de produtos(): a FK cardapio_diario→produtos
-    // é nova (criada pela migration) e o PostgREST só resolve o embed depois
-    // de recarregar o schema cache. Buscamos nome/emoji separadamente abaixo
-    // pra não depender disso.
-    supabase.from("cardapio_diario")
+    // Cardápio do dia — client admin (service role): a leitura via client
+    // autenticado ficava vazia mesmo com a linha existindo no banco, então
+    // usamos o mesmo client que já grava o cardápio em salvarCardapioDoDia()
+    // pra tirar RLS da equação. Sem embed de produtos() pelo mesmo motivo já
+    // documentado antes (FK nova, schema cache do PostgREST) — nome/emoji são
+    // resolvidos separadamente abaixo.
+    supabaseAdmin.from("cardapio_diario")
       .select("produto_id, quantidade_disponivel")
       .eq("cantina_id", CANTINA_ID).eq("data", hoje),
 
