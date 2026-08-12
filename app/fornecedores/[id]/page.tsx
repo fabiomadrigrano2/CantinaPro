@@ -32,6 +32,13 @@ export default async function FornecedorDetailPage({
     .eq("cantina_id", CANTINA_ID)
     .order("data_entrega", { ascending: false });
 
+  const { data: produtos } = await supabase
+    .from("produtos")
+    .select("id, nome, emoji, estoque")
+    .eq("cantina_id", CANTINA_ID)
+    .eq("disponivel", true)
+    .order("nome");
+
   const hoje = todayBR();
   const inicioMes = `${hoje.slice(0, 7)}-01`;
 
@@ -48,6 +55,7 @@ export default async function FornecedorDetailPage({
       <FornecedorDetail
         fornecedor={fornecedor}
         compras={compras ?? []}
+        produtos={produtos ?? []}
         totalMes={totalMes}
         totalAberto={totalAberto}
         hoje={hoje}

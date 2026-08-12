@@ -395,6 +395,7 @@ export default function NovaVenda() {
   const [saleError, setSaleError] = useState<string | null>(null);
   const [successName, setSuccessName] = useState("");
   const [saldoBaixoAviso, setSaldoBaixoAviso] = useState<string | null>(null);
+  const [cardapioIds, setCardapioIds] = useState<Set<string>>(new Set());
 
   // Voice
   const [listening, setListening] = useState(false);
@@ -410,10 +411,13 @@ export default function NovaVenda() {
     const supabase = createClient();
 
     async function load() {
+      const hoje = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+
       const [
         { data: alunosData },
         { data: produtosData },
         { data: popularityData },
+        { data: cardapioData },
       ] = await Promise.all([
         supabase
           .from("alunos")
@@ -432,7 +436,14 @@ export default function NovaVenda() {
           .select("itens_pedido(produto_id, quantidade)")
           .eq("cantina_id", CANTINA_ID)
           .limit(500),
+        supabase
+          .from("cardapio_diario")
+          .select("produto_id")
+          .eq("cantina_id", CANTINA_ID)
+          .eq("data", hoje),
       ]);
+
+      setCardapioIds(new Set((cardapioData ?? []).map((c: any) => c.produto_id)));
 
       setAlunos(
         (alunosData ?? []).map((a: any) => ({
@@ -743,6 +754,36 @@ export default function NovaVenda() {
       setConfirming(false);
       return;
     }
+
+    // Baixa estoque de cada produto vendido (best-effort, sem transação —
+    // mesma limitação do resto desta função, que também não faz rollback
+    // se um passo posterior falhar).
+    // Salgados são a exceção: o estoque deles só é descontado quando o
+    // Cardápio do Dia é definido (ver salvarCardapioDoDia em
+    // app/dashboard/actions.ts), não a cada venda — o "sobrou" desses itens
+    // no Dashboard já é calculado via cardápio - vendido, independente disto.
+    const estoqueAtualizado: Record<string, number> = {};
+    for (const { product, qty } of cartItems) {
+      if (product.categoria === "salgados") continue;
+
+      const { data: produtoAtual } = await supabase
+        .from("produtos")
+        .select("estoque")
+        .eq("id", product.id)
+        .single();
+
+      const novoEstoqueProduto = Math.max(0, ((produtoAtual as any)?.estoque ?? 0) - qty);
+      estoqueAtualizado[product.id] = novoEstoqueProduto;
+
+      await (supabase as any)
+        .from("produtos")
+        .update({ estoque: novoEstoqueProduto })
+        .eq("id", product.id);
+    }
+
+    setProdutos((prev) =>
+      prev.map((p) => (p.id in estoqueAtualizado ? { ...p, estoque: estoqueAtualizado[p.id] } : p))
+    );
 
     const novoSaldo = selectedAluno.saldo - total;
     const alunoUpdate: Record<string, unknown> = { saldo: novoSaldo };
@@ -1240,6 +1281,7 @@ export default function NovaVenda() {
               const qty = cart[p.id] ?? 0;
               const outOfStock = p.estoque === 0;
               const lowStock = p.estoque > 0 && p.estoque < 5;
+              const emCardapio = cardapioIds.has(p.id);
 
               return (
                 <div
@@ -1256,8 +1298,13 @@ export default function NovaVenda() {
                   <button
                     onClick={() => !outOfStock && addProduct(p.id)}
                     disabled={outOfStock}
-                    className="flex-1 flex flex-col text-left active:scale-95 transition-transform disabled:cursor-not-allowed"
+                    className="relative flex-1 flex flex-col text-left active:scale-95 transition-transform disabled:cursor-not-allowed"
                   >
+                    {emCardapio && !outOfStock && (
+                      <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/90 text-white shadow">
+                        Hoje
+                      </span>
+                    )}
                     {p.foto_url ? (
                       <img
                         src={p.foto_url}

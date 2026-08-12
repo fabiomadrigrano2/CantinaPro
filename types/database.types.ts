@@ -887,6 +887,8 @@ export type Database = {
           cantina_id: string;
           produto_id: string;
           quantidade: number;
+          origem: string;
+          compra_fornecedor_id: string | null;
           criado_em: string | null;
         };
         Insert: {
@@ -894,6 +896,8 @@ export type Database = {
           cantina_id: string;
           produto_id: string;
           quantidade: number;
+          origem?: string;
+          compra_fornecedor_id?: string | null;
           criado_em?: string | null;
         };
         Update: {
@@ -901,9 +905,18 @@ export type Database = {
           cantina_id?: string;
           produto_id?: string;
           quantidade?: number;
+          origem?: string;
+          compra_fornecedor_id?: string | null;
           criado_em?: string | null;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "reposicoes_compra_fornecedor_id_fkey";
+            columns: ["compra_fornecedor_id"];
+            referencedRelation: "compras_fornecedores";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       fornecedores: {
         Row: {
@@ -993,6 +1006,83 @@ export type Database = {
             foreignKeyName: "compras_fornecedores_fornecedor_id_fkey";
             columns: ["fornecedor_id"];
             referencedRelation: "fornecedores";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      compra_itens: {
+        Row: {
+          id: string;
+          cantina_id: string;
+          compra_id: string;
+          produto_id: string;
+          quantidade: number;
+          criado_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          cantina_id: string;
+          compra_id: string;
+          produto_id: string;
+          quantidade: number;
+          criado_em?: string | null;
+        };
+        Update: {
+          id?: string;
+          cantina_id?: string;
+          compra_id?: string;
+          produto_id?: string;
+          quantidade?: number;
+          criado_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "compra_itens_compra_id_fkey";
+            columns: ["compra_id"];
+            referencedRelation: "compras_fornecedores";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "compra_itens_produto_id_fkey";
+            columns: ["produto_id"];
+            referencedRelation: "produtos";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      cardapio_diario: {
+        Row: {
+          id: string;
+          cantina_id: string;
+          produto_id: string;
+          data: string;
+          quantidade_disponivel: number;
+          criado_em: string | null;
+          atualizado_em: string | null;
+        };
+        Insert: {
+          id?: string;
+          cantina_id: string;
+          produto_id: string;
+          data: string;
+          quantidade_disponivel: number;
+          criado_em?: string | null;
+          atualizado_em?: string | null;
+        };
+        Update: {
+          id?: string;
+          cantina_id?: string;
+          produto_id?: string;
+          data?: string;
+          quantidade_disponivel?: number;
+          criado_em?: string | null;
+          atualizado_em?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cardapio_diario_produto_id_fkey";
+            columns: ["produto_id"];
+            referencedRelation: "produtos";
             referencedColumns: ["id"];
           }
         ];

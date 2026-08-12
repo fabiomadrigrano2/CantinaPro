@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
+import CardapioDoDia from "@/components/dashboard/CardapioDoDia";
 import Link from "next/link";
 
 // ── constantes ────────────────────────────────────────────────────────────────
@@ -31,6 +32,18 @@ function formatDate() {
   return new Intl.DateTimeFormat("pt-BR", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
   }).format(new Date());
+}
+
+function todayBR(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+function dateRangeBR(date: string): { start: string; end: string } {
+  const [y, m, d] = date.split("-").map(Number);
+  // Brazil is UTC-3 (no DST since 2019): midnight BR = 03:00 UTC
+  const start = new Date(Date.UTC(y, m - 1, d, 3, 0, 0));
+  const end   = new Date(Date.UTC(y, m - 1, d + 1, 3, 0, 0));
+  return { start: start.toISOString(), end: end.toISOString() };
 }
 
 function calcTrend(
@@ -133,6 +146,9 @@ export default async function DashboardPage() {
   const todayISO     = todayUTC.toISOString();
   const yesterdayISO = yesterdayUTC.toISOString();
 
+  const hoje = todayBR();
+  const { start: hojeStart, end: hojeEnd } = dateRangeBR(hoje);
+
   // Todas as queries em paralelo
   const [
     { data: { user } },
@@ -142,6 +158,9 @@ export default async function DashboardPage() {
     { count: nOntem },
     { data: rawSaldoBaixo },
     { data: rawCobrancas },
+    { data: rawCardapio },
+    { data: produtosAtivos },
+    { data: pedidosHojeParaCardapio },
   ] = await Promise.all([
     supabase.auth.getUser(),
 
@@ -164,6 +183,22 @@ export default async function DashboardPage() {
     // Fiado com saldo ≤ 0 (cobranças pendentes)
     supabase.from("contas").select("saldo, alunos(nome, turma)")
       .eq("cantina_id", CANTINA_ID).eq("tipo", "fiado").lte("saldo", 0).order("saldo").limit(50),
+
+    // Cardápio do dia
+    supabase.from("cardapio_diario")
+      .select("produto_id, quantidade_disponivel, produtos(nome, emoji)")
+      .eq("cantina_id", CANTINA_ID).eq("data", hoje),
+
+    // Produtos ativos disponíveis para compor o cardápio
+    supabase.from("produtos")
+      .select("id, nome, emoji, categoria, estoque")
+      .eq("cantina_id", CANTINA_ID).eq("disponivel", true).order("nome"),
+
+    // Vendas confirmadas de hoje (para calcular quanto já foi vendido de cada item do cardápio)
+    supabase.from("pedidos")
+      .select("itens_pedido(produto_id, quantidade)")
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado")
+      .gte("criado_em", hojeStart).lt("criado_em", hojeEnd),
   ]);
 
   // ── processar dados ───────────────────────────────────────────────────────────
@@ -187,6 +222,26 @@ export default async function DashboardPage() {
     turma: c.alunos?.turma ?? null,
     saldo: c.saldo ?? 0,
   }));
+
+  const vendidoPorProduto: Record<string, number> = {};
+  for (const pedido of (pedidosHojeParaCardapio ?? []) as any[]) {
+    for (const item of pedido.itens_pedido ?? []) {
+      vendidoPorProduto[item.produto_id] =
+        (vendidoPorProduto[item.produto_id] ?? 0) + (item.quantidade ?? 0);
+    }
+  }
+
+  const cardapioAtual = (rawCardapio ?? []).map((c: any) => {
+    const vendido = vendidoPorProduto[c.produto_id] ?? 0;
+    return {
+      produto_id: c.produto_id,
+      nome: c.produtos?.nome ?? "—",
+      emoji: c.produtos?.emoji ?? "🍽️",
+      quantidade_disponivel: c.quantidade_disponivel,
+      vendido,
+      sobrou: c.quantidade_disponivel - vendido,
+    };
+  });
 
   // ── métricas ──────────────────────────────────────────────────────────────────
 
@@ -253,6 +308,13 @@ export default async function DashboardPage() {
             Nova Venda
           </Link>
         </div>
+
+        {/* Cardápio do dia */}
+        <CardapioDoDia
+          hoje={hoje}
+          produtosDisponiveis={(produtosAtivos as any) ?? []}
+          cardapioAtual={cardapioAtual}
+        />
 
         {/* Métricas — 2 colunas em mobile, 4 em desktop */}
         <section>

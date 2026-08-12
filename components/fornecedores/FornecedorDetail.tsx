@@ -25,6 +25,18 @@ type Compra = {
   data_vencimento: string | null;
 };
 
+type ProdutoOpcao = {
+  id: string;
+  nome: string;
+  emoji: string | null;
+  estoque: number | null;
+};
+
+type ItemCompra = {
+  produto_id: string;
+  quantidade: string;
+};
+
 // ── constantes ────────────────────────────────────────────────────────────────
 
 const FREQUENCIA_LABEL: Record<string, string> = {
@@ -67,12 +79,14 @@ function statusBadge(c: Compra, hoje: string) {
 export default function FornecedorDetail({
   fornecedor,
   compras,
+  produtos,
   totalMes,
   totalAberto,
   hoje,
 }: {
   fornecedor: Fornecedor;
   compras: Compra[];
+  produtos: ProdutoOpcao[];
   totalMes: number;
   totalAberto: number;
   hoje: string;
@@ -89,6 +103,8 @@ export default function FornecedorDetail({
     status_pagamento: "a_pagar" as "pago" | "a_pagar",
     data_vencimento: hoje,
   });
+  const [itens, setItens] = useState<ItemCompra[]>([]);
+  const [produtoParaAdicionar, setProdutoParaAdicionar] = useState("");
 
   const [payingId, setPayingId] = useState<string | null>(null);
 
@@ -101,6 +117,8 @@ export default function FornecedorDetail({
 
   function openModal() {
     setForm({ data_entrega: hoje, descricao: "", valor: "", status_pagamento: "a_pagar", data_vencimento: hoje });
+    setItens([]);
+    setProdutoParaAdicionar("");
     setFormError(null);
     setShowModal(true);
   }
@@ -113,16 +131,38 @@ export default function FornecedorDetail({
     setForm((f) => ({ ...f, [field]: value }));
   }
 
+  const produtosDisponiveisParaAdicionar = produtos.filter(
+    (p) => !itens.some((i) => i.produto_id === p.id)
+  );
+
+  function addItem() {
+    if (!produtoParaAdicionar) return;
+    setItens((prev) => [...prev, { produto_id: produtoParaAdicionar, quantidade: "1" }]);
+    setProdutoParaAdicionar("");
+  }
+
+  function removeItem(produtoId: string) {
+    setItens((prev) => prev.filter((i) => i.produto_id !== produtoId));
+  }
+
+  function setItemQuantidade(produtoId: string, quantidade: string) {
+    setItens((prev) => prev.map((i) => (i.produto_id === produtoId ? { ...i, quantidade } : i)));
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
 
     const valor = parseFloat(form.valor);
-    if (!form.descricao.trim()) {
-      setFormError("Descreva os itens recebidos.");
+    if (!form.descricao.trim() && itens.length === 0) {
+      setFormError("Descreva os itens recebidos ou selecione ao menos um produto.");
       return;
     }
     if (!valor || valor <= 0) {
       setFormError("Informe um valor válido maior que zero.");
+      return;
+    }
+    if (itens.some((i) => !parseInt(i.quantidade) || parseInt(i.quantidade) <= 0)) {
+      setFormError("Informe uma quantidade válida para cada produto adicionado.");
       return;
     }
 
@@ -135,6 +175,7 @@ export default function FornecedorDetail({
       valor,
       status_pagamento: form.status_pagamento,
       data_vencimento: form.status_pagamento === "a_pagar" ? form.data_vencimento : null,
+      itens: itens.map((i) => ({ produto_id: i.produto_id, quantidade: parseInt(i.quantidade) })),
     });
 
     if (error) {
@@ -312,7 +353,9 @@ export default function FornecedorDetail({
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Itens recebidos</label>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Itens recebidos {itens.length > 0 && <span className="text-gray-600 font-normal">(opcional)</span>}
+                </label>
                 <textarea
                   value={form.descricao}
                   onChange={(e) => set("descricao", e.target.value)}
@@ -320,8 +363,72 @@ export default function FornecedorDetail({
                   rows={2}
                   placeholder="Ex: 5 caixas de refrigerante, 10kg de pão de queijo"
                   autoFocus
-                  required
+                  required={itens.length === 0}
                 />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-gray-400 mb-1.5">
+                  Produtos comprados <span className="text-gray-600 font-normal">(opcional — atualiza o estoque)</span>
+                </label>
+
+                {itens.length > 0 && (
+                  <div className="space-y-2 mb-2">
+                    {itens.map((item) => {
+                      const produto = produtos.find((p) => p.id === item.produto_id);
+                      if (!produto) return null;
+                      return (
+                        <div
+                          key={item.produto_id}
+                          className="flex items-center gap-2 bg-cp-elevated border border-cp-border rounded-lg px-3 py-2"
+                        >
+                          <span className="text-lg leading-none shrink-0">{produto.emoji ?? "🍽️"}</span>
+                          <span className="flex-1 min-w-0 text-sm text-white truncate">{produto.nome}</span>
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={item.quantidade}
+                            onChange={(e) => setItemQuantidade(item.produto_id, e.target.value)}
+                            className="w-16 px-2 py-1 rounded-md bg-cp-surface border border-cp-border text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.produto_id)}
+                            className="shrink-0 w-6 h-6 flex items-center justify-center rounded-full text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition text-sm"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {produtosDisponiveisParaAdicionar.length > 0 && (
+                  <div className="flex gap-2">
+                    <select
+                      value={produtoParaAdicionar}
+                      onChange={(e) => setProdutoParaAdicionar(e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Selecione um produto...</option>
+                      {produtosDisponiveisParaAdicionar.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.emoji ?? "🍽️"} {p.nome} (estoque: {p.estoque ?? 0})
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      disabled={!produtoParaAdicionar}
+                      className="shrink-0 px-4 rounded-lg border border-cp-border text-gray-300 hover:text-white hover:border-cp-muted disabled:opacity-40 transition text-sm font-medium"
+                    >
+                      + Adicionar
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div>

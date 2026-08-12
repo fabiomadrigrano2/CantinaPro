@@ -44,24 +44,91 @@ export async function registrarCompra(
     valor: number;
     status_pagamento: StatusPagamento;
     data_vencimento: string | null;
+    itens: { produto_id: string; quantidade: number }[];
   }
 ): Promise<{ error?: string }> {
   const supabase = createAdminClient();
 
-  const { error } = await supabase.from("compras_fornecedores").insert({
-    cantina_id:       CANTINA_ID,
-    fornecedor_id:    fornecedorId,
-    data_entrega:     data.data_entrega,
-    descricao:        data.descricao.trim(),
-    valor:            data.valor,
-    status_pagamento: data.status_pagamento,
-    data_vencimento:  data.status_pagamento === "a_pagar" ? data.data_vencimento : null,
-  });
+  // Mescla itens com produto_id duplicado (defesa server-side — a UI já
+  // impede duplicata escondendo produtos já adicionados do seletor).
+  const itensMap = new Map<string, number>();
+  for (const item of data.itens) {
+    if (!item.produto_id || item.quantidade <= 0) continue;
+    itensMap.set(item.produto_id, (itensMap.get(item.produto_id) ?? 0) + item.quantidade);
+  }
+  const itens = Array.from(itensMap, ([produto_id, quantidade]) => ({ produto_id, quantidade }));
+
+  let descricaoFinal = data.descricao.trim();
+  if (!descricaoFinal && itens.length > 0) {
+    const { data: produtosNomes } = await supabase
+      .from("produtos")
+      .select("id, nome")
+      .in("id", itens.map((i) => i.produto_id));
+
+    const nomeMap = new Map((produtosNomes ?? []).map((p) => [p.id, p.nome]));
+    descricaoFinal = itens
+      .map((i) => `${i.quantidade}x ${nomeMap.get(i.produto_id) ?? "Produto"}`)
+      .join(", ");
+  }
+
+  if (!descricaoFinal) return { error: "Descreva os itens recebidos ou selecione ao menos um produto." };
+
+  const { data: compra, error } = await supabase
+    .from("compras_fornecedores")
+    .insert({
+      cantina_id:       CANTINA_ID,
+      fornecedor_id:    fornecedorId,
+      data_entrega:     data.data_entrega,
+      descricao:        descricaoFinal,
+      valor:            data.valor,
+      status_pagamento: data.status_pagamento,
+      data_vencimento:  data.status_pagamento === "a_pagar" ? data.data_vencimento : null,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
 
+  for (const item of itens) {
+    const { error: itemError } = await supabase.from("compra_itens").insert({
+      cantina_id: CANTINA_ID,
+      compra_id:  compra.id,
+      produto_id: item.produto_id,
+      quantidade: item.quantidade,
+    });
+    if (itemError) {
+      return { error: `Compra registrada, mas falhou ao registrar item de estoque: ${itemError.message}` };
+    }
+
+    const { data: produtoAtual } = await supabase
+      .from("produtos")
+      .select("estoque")
+      .eq("id", item.produto_id)
+      .single();
+
+    const novoEstoque = (produtoAtual?.estoque ?? 0) + item.quantidade;
+
+    const { error: estoqueError } = await supabase
+      .from("produtos")
+      .update({ estoque: novoEstoque })
+      .eq("id", item.produto_id);
+
+    if (estoqueError) {
+      return { error: `Compra registrada, mas falhou ao atualizar estoque: ${estoqueError.message}` };
+    }
+
+    await supabase.from("reposicoes").insert({
+      cantina_id:            CANTINA_ID,
+      produto_id:            item.produto_id,
+      quantidade:            item.quantidade,
+      origem:                "compra_fornecedor",
+      compra_fornecedor_id:  compra.id,
+    });
+  }
+
   revalidatePath("/fornecedores");
   revalidatePath(`/fornecedores/${fornecedorId}`);
+  revalidatePath("/produtos");
   return {};
 }
 
