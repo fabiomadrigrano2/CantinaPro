@@ -35,7 +35,17 @@ function formatDate() {
 }
 
 function todayBR(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  // Aritmética direta em vez de Intl.DateTimeFormat(timeZone: ...): o cardápio
+  // do dia estava sendo lido com a data em UTC em vez de America/Sao_Paulo,
+  // então em vez de depender do runtime resolver o fuso horário via ICU,
+  // calculamos o offset fixo BR = UTC-3 (sem horário de verão desde 2019) —
+  // mesma premissa já usada em dateRangeBR() logo abaixo.
+  const now    = new Date();
+  const brTime = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const y = brTime.getUTCFullYear();
+  const m = String(brTime.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(brTime.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function dateRangeBR(date: string): { start: string; end: string } {
