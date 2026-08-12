@@ -189,10 +189,11 @@ export default async function DashboardPage() {
       .select("produto_id, quantidade_disponivel, produtos(nome, emoji)")
       .eq("cantina_id", CANTINA_ID).eq("data", hoje),
 
-    // Produtos ativos disponíveis para compor o cardápio
+    // Produtos ativos disponíveis para compor o cardápio — só salgados,
+    // que é a categoria que o Cardápio do Dia controla
     supabase.from("produtos")
       .select("id, nome, emoji, categoria, estoque")
-      .eq("cantina_id", CANTINA_ID).eq("disponivel", true).order("nome"),
+      .eq("cantina_id", CANTINA_ID).eq("disponivel", true).eq("categoria", "salgados").order("nome"),
 
     // Vendas confirmadas de hoje (para calcular quanto já foi vendido de cada item do cardápio)
     supabase.from("pedidos")
