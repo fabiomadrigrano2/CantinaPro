@@ -28,10 +28,29 @@ type ItemCardapio = {
 const inputCls =
   "w-full px-4 py-2.5 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition";
 
-function sobrouBadge(sobrou: number) {
-  if (sobrou > 0) return { label: `restam ${sobrou}`, cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" };
-  if (sobrou === 0) return { label: "esgotado", cls: "text-amber-400 bg-amber-500/10 border-amber-500/20" };
-  return { label: `vendeu ${Math.abs(sobrou)} a mais que o previsto`, cls: "text-red-400 bg-red-500/10 border-red-500/20" };
+function formatDataCardapio(hoje: string): string {
+  const [y, m, d] = hoje.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const weekday = cap(new Intl.DateTimeFormat("pt-BR", { weekday: "long" }).format(date));
+  const month   = cap(new Intl.DateTimeFormat("pt-BR", { month: "long" }).format(date));
+  return `${weekday}, ${String(d).padStart(2, "0")} de ${month}`;
+}
+
+function restanteInfo(disponivel: number, sobrou: number) {
+  const percent = disponivel > 0 ? Math.max(0, Math.min(100, (sobrou / disponivel) * 100)) : 0;
+
+  let barCls = "bg-red-500";
+  let textCls = "text-red-400";
+  if (percent > 50)      { barCls = "bg-emerald-500"; textCls = "text-emerald-400"; }
+  else if (percent > 20) { barCls = "bg-amber-400";   textCls = "text-amber-400";   }
+
+  const label =
+    sobrou < 0 ? `vendeu ${Math.abs(sobrou)} a mais que o previsto`
+    : sobrou === 0 ? "esgotado"
+    : `restam ${sobrou}`;
+
+  return { percent, barCls, textCls, label };
 }
 
 // ── componente ────────────────────────────────────────────────────────────────
@@ -124,20 +143,21 @@ export default function CardapioDoDia({
 
   const qtdSelecionados = Object.keys(selecionados).length;
 
+  const dataFormatada = formatDataCardapio(hoje);
+
   return (
     <section>
-      <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-        Cardápio do dia
-      </h2>
-
       {cardapioAtual.length === 0 ? (
-        <div className="bg-cp-surface border border-cp-border rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">🍱</span>
+        <div className="bg-cp-surface border border-orange-500/20 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="shrink-0 w-12 h-12 rounded-full bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-2xl">
+              🍱
+            </div>
             <div>
-              <p className="text-white font-semibold text-sm">Qual o cardápio de hoje?</p>
-              <p className="text-gray-500 text-xs mt-0.5">
-                Escolha os produtos que serão vendidos hoje e a quantidade disponível de cada um.
+              <p className="text-white font-semibold text-sm">Definir cardápio de hoje</p>
+              <p className="text-gray-500 text-xs mt-0.5 capitalize">{dataFormatada}</p>
+              <p className="text-gray-500 text-xs mt-1">
+                Escolha os salgados que serão vendidos hoje e a quantidade disponível de cada um.
               </p>
             </div>
           </div>
@@ -150,37 +170,47 @@ export default function CardapioDoDia({
           </button>
         </div>
       ) : (
-        <div className="bg-cp-surface border border-cp-border rounded-2xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-400">
-              {cardapioAtual.length} produto{cardapioAtual.length !== 1 ? "s" : ""} no cardápio de hoje
-            </p>
+        <div className="bg-cp-surface border border-orange-500/20 rounded-2xl p-5 shadow-lg shadow-orange-500/5">
+          <div className="flex items-start justify-between gap-3 mb-5">
+            <div>
+              <h3 className="text-white font-bold text-base flex items-center gap-2">
+                🍽️ Cardápio de Hoje
+              </h3>
+              <p className="text-gray-500 text-xs mt-1 capitalize">{dataFormatada}</p>
+            </div>
             <button
               onClick={openModal}
-              className="text-xs font-medium text-orange-400 hover:text-orange-300 transition"
+              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-orange-400 border border-cp-border hover:border-orange-500/40 rounded-lg px-3 py-1.5 transition"
             >
-              Editar Cardápio
+              ✏️ Editar Cardápio
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {cardapioAtual.map((item) => {
-              const badge = sobrouBadge(item.sobrou);
+              const info = restanteInfo(item.quantidade_disponivel, item.sobrou);
               return (
                 <div
                   key={item.produto_id}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl border border-cp-border bg-cp-elevated"
+                  className="rounded-xl border border-cp-border bg-cp-elevated px-4 py-3"
                 >
-                  <span className="text-xl leading-none shrink-0">{item.emoji}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{item.nome}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {item.vendido} vendido{item.vendido !== 1 ? "s" : ""} de {item.quantidade_disponivel}
-                    </p>
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-xl leading-none shrink-0">{item.emoji}</span>
+                    <p className="flex-1 min-w-0 text-sm font-medium text-white truncate">{item.nome}</p>
+                    <span className={`shrink-0 text-xs font-semibold ${info.textCls}`}>{info.label}</span>
                   </div>
-                  <span className={`shrink-0 text-xs px-2 py-0.5 rounded-full border whitespace-nowrap ${badge.cls}`}>
-                    {badge.label}
-                  </span>
+
+                  <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1.5">
+                    <span>Disponível: {item.quantidade_disponivel}</span>
+                    <span>Vendido: {item.vendido}</span>
+                  </div>
+
+                  <div className="h-2 rounded-full bg-cp-surface overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${info.barCls}`}
+                      style={{ width: `${info.percent}%` }}
+                    />
+                  </div>
                 </div>
               );
             })}
