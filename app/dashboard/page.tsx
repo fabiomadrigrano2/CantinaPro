@@ -230,6 +230,12 @@ export default async function DashboardPage() {
   if (cardapioError) {
     console.error("[dashboard] falha ao buscar cardapio_diario:", cardapioError.message);
   }
+  console.log("[dashboard][cardapio] hoje =", hoje);
+  console.log("[dashboard][cardapio] rawCardapio =", JSON.stringify(rawCardapio));
+  console.log(
+    "[dashboard][cardapio] produtosAtivos (salgados) =",
+    JSON.stringify((produtosAtivos ?? []).map((p: any) => ({ id: p.id, nome: p.nome, categoria: p.categoria })))
+  );
 
   const vendidoPorProduto: Record<string, number> = {};
   for (const pedido of (pedidosHojeParaCardapio ?? []) as any[]) {
@@ -258,6 +264,8 @@ export default async function DashboardPage() {
       sobrou: c.quantidade_disponivel - vendido,
     };
   });
+
+  console.log("[dashboard][cardapio] cardapioAtual (o que vai pro componente) =", JSON.stringify(cardapioAtual));
 
   // ── métricas ──────────────────────────────────────────────────────────────────
 
