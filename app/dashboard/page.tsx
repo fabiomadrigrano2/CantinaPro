@@ -158,7 +158,7 @@ export default async function DashboardPage() {
     { count: nOntem },
     { data: rawSaldoBaixo },
     { data: rawCobrancas },
-    { data: rawCardapio },
+    { data: rawCardapio, error: cardapioError },
     { data: produtosAtivos },
     { data: pedidosHojeParaCardapio },
   ] = await Promise.all([
@@ -184,9 +184,12 @@ export default async function DashboardPage() {
     supabase.from("contas").select("saldo, alunos(nome, turma)")
       .eq("cantina_id", CANTINA_ID).eq("tipo", "fiado").lte("saldo", 0).order("saldo").limit(50),
 
-    // Cardápio do dia
+    // Cardápio do dia — sem embed de produtos(): a FK cardapio_diario→produtos
+    // é nova (criada pela migration) e o PostgREST só resolve o embed depois
+    // de recarregar o schema cache. Buscamos nome/emoji separadamente abaixo
+    // pra não depender disso.
     supabase.from("cardapio_diario")
-      .select("produto_id, quantidade_disponivel, produtos(nome, emoji)")
+      .select("produto_id, quantidade_disponivel")
       .eq("cantina_id", CANTINA_ID).eq("data", hoje),
 
     // Produtos ativos disponíveis para compor o cardápio — só salgados,
@@ -224,6 +227,10 @@ export default async function DashboardPage() {
     saldo: c.saldo ?? 0,
   }));
 
+  if (cardapioError) {
+    console.error("[dashboard] falha ao buscar cardapio_diario:", cardapioError.message);
+  }
+
   const vendidoPorProduto: Record<string, number> = {};
   for (const pedido of (pedidosHojeParaCardapio ?? []) as any[]) {
     for (const item of pedido.itens_pedido ?? []) {
@@ -232,12 +239,20 @@ export default async function DashboardPage() {
     }
   }
 
+  // Resolve nome/emoji pela lista de produtos já carregada (produtosAtivos já
+  // filtra só salgados, que é a única categoria que entra no cardápio) — evita
+  // depender do embed automático produtos() na query de cardapio_diario acima.
+  const produtoPorId = new Map<string, any>(
+    ((produtosAtivos as any) ?? []).map((p: any) => [p.id, p])
+  );
+
   const cardapioAtual = (rawCardapio ?? []).map((c: any) => {
+    const produto = produtoPorId.get(c.produto_id);
     const vendido = vendidoPorProduto[c.produto_id] ?? 0;
     return {
       produto_id: c.produto_id,
-      nome: c.produtos?.nome ?? "—",
-      emoji: c.produtos?.emoji ?? "🍽️",
+      nome: produto?.nome ?? "—",
+      emoji: produto?.emoji ?? "🍽️",
       quantidade_disponivel: c.quantidade_disponivel,
       vendido,
       sobrou: c.quantidade_disponivel - vendido,
