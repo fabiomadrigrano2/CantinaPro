@@ -50,10 +50,14 @@ export default function CaixaSection({
   cantinaId: string;
 }) {
   const router = useRouter();
-  const [modal,   setModal]   = useState<ModalTipo>(null);
-  const [form,    setForm]    = useState({ valor: "", descricao: "" });
-  const [saving,  setSaving]  = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [modal,    setModal]    = useState<ModalTipo>(null);
+  const [form,     setForm]     = useState({ valor: "", descricao: "" });
+  const [saving,   setSaving]   = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
+  const [expandido, setExpandido] = useState(false);
+
+  const LIMITE_VISIVEL = 5;
+  const movimentacoesVisiveis = expandido ? movimentacoes : movimentacoes.slice(0, LIMITE_VISIVEL);
 
   function openModal(tipo: ModalTipo) {
     setForm({ valor: "", descricao: "" });
@@ -252,7 +256,7 @@ export default function CaixaSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-cp-border">
-                {movimentacoes.map((m) => {
+                {movimentacoesVisiveis.map((m) => {
                   const badge    = BADGE[m.tipo] ?? BADGE.entrada;
                   const isEntrada = m.tipo !== "saida";
                   return (
@@ -283,6 +287,17 @@ export default function CaixaSection({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {movimentacoes.length > LIMITE_VISIVEL && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={() => setExpandido((v) => !v)}
+              className="px-4 py-2 text-sm font-medium text-gray-300 bg-cp-elevated hover:bg-cp-border border border-cp-border rounded-xl transition-all"
+            >
+              {expandido ? "Ver menos" : `Ver mais (${movimentacoes.length - LIMITE_VISIVEL})`}
+            </button>
           </div>
         )}
       </div>
