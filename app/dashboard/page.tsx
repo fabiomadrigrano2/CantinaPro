@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import AppLayout from "@/components/layout/AppLayout";
 import CardapioDoDia from "@/components/dashboard/CardapioDoDia";
+import AlunoListSection from "@/components/dashboard/AlunoListSection";
 import Link from "next/link";
 
 // ── constantes ────────────────────────────────────────────────────────────────
@@ -96,50 +97,6 @@ function MetricCard({ metric }: { metric: Metric }) {
         <p className="text-2xl font-bold text-white mt-0.5 tabular-nums">{metric.value}</p>
       </div>
       <p className="text-xs text-gray-500 leading-snug">{metric.sub}</p>
-    </div>
-  );
-}
-
-function AlunoRow({
-  aluno,
-  variant,
-}: {
-  aluno: AlunoSaldo;
-  variant: "saldo" | "cobranca";
-}) {
-  const isSaldo    = variant === "saldo";
-  const isNegative = aluno.saldo < 0;
-  const isZero     = aluno.saldo === 0;
-
-  return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-cp-border bg-cp-surface hover:bg-cp-elevated transition-colors">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm ${
-        isSaldo
-          ? "bg-amber-400/10 text-amber-400"
-          : "bg-red-500/10 text-red-400"
-      }`}>
-        👤
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{aluno.nome}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{aluno.turma ?? "—"}</p>
-      </div>
-
-      {isSaldo ? (
-        <span className={`text-sm font-bold tabular-nums ${
-          isNegative ? "text-red-400" : isZero ? "text-gray-400" : "text-amber-400"
-        }`}>
-          {fmt(aluno.saldo)}
-        </span>
-      ) : (
-        <div className="text-right shrink-0">
-          <p className="text-sm font-bold text-red-400 tabular-nums">
-            {fmt(Math.abs(aluno.saldo))}
-          </p>
-          <p className="text-[11px] text-gray-600 mt-0.5">em aberto</p>
-        </div>
-      )}
     </div>
   );
 }
@@ -365,50 +322,32 @@ export default async function DashboardPage() {
         </section>
 
         {/* Alertas de saldo baixo */}
-        {saldoBaixo.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                Saldo baixo
-              </h2>
-              <span className="text-xs font-semibold text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2 py-0.5 rounded-full">
-                {saldoBaixo.length}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {saldoBaixo.map((a) => (
-                <AlunoRow key={`saldo-${a.nome}`} aluno={a} variant="saldo" />
-              ))}
-            </div>
-          </section>
-        )}
+        <AlunoListSection
+          title="Saldo baixo"
+          alunos={saldoBaixo}
+          variant="saldo"
+          keyPrefix="saldo"
+          badgeCls="text-amber-400 bg-amber-400/10 border-amber-400/20"
+        />
 
         {/* Cobranças pendentes (fiado com saldo ≤ 0) */}
-        {cobrancas.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">
-                Cobranças pendentes
-              </h2>
-              <span className="text-xs font-semibold text-red-400 bg-red-400/10 border border-red-400/20 px-2 py-0.5 rounded-full">
-                {cobrancas.length}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {cobrancas.map((a) => (
-                <AlunoRow key={`cobranca-${a.nome}`} aluno={a} variant="cobranca" />
-              ))}
-            </div>
-
-            {/* Total em aberto */}
-            <div className="mt-3 flex items-center justify-between px-4 py-3 rounded-xl bg-red-500/5 border border-red-500/15">
-              <span className="text-xs text-gray-500">Total em aberto</span>
-              <span className="text-sm font-bold text-red-400 tabular-nums">
-                {fmt(Math.abs(cobrancas.reduce((s, a) => s + a.saldo, 0)))}
-              </span>
-            </div>
-          </section>
-        )}
+        <AlunoListSection
+          title="Cobranças pendentes"
+          alunos={cobrancas}
+          variant="cobranca"
+          keyPrefix="cobranca"
+          badgeCls="text-red-400 bg-red-400/10 border-red-400/20"
+          footer={
+            cobrancas.length > 0 ? (
+              <div className="mt-3 flex items-center justify-between px-4 py-3 rounded-xl bg-red-500/5 border border-red-500/15">
+                <span className="text-xs text-gray-500">Total em aberto</span>
+                <span className="text-sm font-bold text-red-400 tabular-nums">
+                  {fmt(Math.abs(cobrancas.reduce((s, a) => s + a.saldo, 0)))}
+                </span>
+              </div>
+            ) : null
+          }
+        />
 
       </div>
     </AppLayout>
