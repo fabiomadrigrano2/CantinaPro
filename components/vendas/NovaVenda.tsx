@@ -758,13 +758,11 @@ export default function NovaVenda() {
     // Baixa estoque de cada produto vendido (best-effort, sem transação —
     // mesma limitação do resto desta função, que também não faz rollback
     // se um passo posterior falhar).
-    // Salgados são a exceção: o estoque deles só é descontado quando o
-    // Cardápio do Dia é definido (ver salvarCardapioDoDia em
-    // app/dashboard/actions.ts), não a cada venda — o "sobrou" desses itens
-    // no Dashboard já é calculado via cardápio - vendido, independente disto.
+    // Apenas salgados descontam estoque na venda; as demais categorias
+    // (geladeira, doces, bebidas, etc.) não controlam estoque por venda.
     const estoqueAtualizado: Record<string, number> = {};
     for (const { product, qty } of cartItems) {
-      if (product.categoria === "salgados") continue;
+      if (product.categoria !== "salgados") continue;
 
       const { data: produtoAtual } = await supabase
         .from("produtos")

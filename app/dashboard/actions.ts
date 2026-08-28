@@ -13,44 +13,9 @@ export async function salvarCardapioDoDia(
 
   const idsAtuais = itens.map((i) => i.produto_id);
 
-  // Salgados: o estoque não é descontado por venda (ver confirmSale() em
-  // NovaVenda.tsx) — é descontado aqui, no momento em que a quantidade do
-  // cardápio de hoje é definida/editada. Para não descontar duas vezes ao
-  // reeditar o cardápio no mesmo dia, aplicamos só o delta entre a
-  // quantidade anterior e a nova (reduzir/remover devolve estoque).
-  const { data: existentes } = await supabase
-    .from("cardapio_diario")
-    .select("produto_id, quantidade_disponivel")
-    .eq("cantina_id", CANTINA_ID)
-    .eq("data", data);
-
-  const qtdAnterior = new Map((existentes ?? []).map((e) => [e.produto_id, e.quantidade_disponivel]));
-  const qtdNova = new Map(itens.map((i) => [i.produto_id, i.quantidade_disponivel]));
-  const idsEnvolvidos = Array.from(
-    new Set([...Array.from(qtdAnterior.keys()), ...Array.from(qtdNova.keys())])
-  );
-
-  if (idsEnvolvidos.length > 0) {
-    const { data: produtosEnvolvidos } = await supabase
-      .from("produtos")
-      .select("id, categoria, estoque")
-      .in("id", idsEnvolvidos);
-
-    for (const produto of produtosEnvolvidos ?? []) {
-      if (produto.categoria !== "salgados") continue;
-
-      const delta = (qtdNova.get(produto.id) ?? 0) - (qtdAnterior.get(produto.id) ?? 0);
-      if (delta === 0) continue;
-
-      const novoEstoque = Math.max(0, (produto.estoque ?? 0) - delta);
-      const { error: estoqueError } = await supabase
-        .from("produtos")
-        .update({ estoque: novoEstoque })
-        .eq("id", produto.id);
-
-      if (estoqueError) return { error: `Falha ao ajustar estoque do salgado: ${estoqueError.message}` };
-    }
-  }
+  // O estoque dos salgados agora é descontado na venda (ver confirmSale()
+  // em NovaVenda.tsx), não mais aqui — definir o cardápio do dia não
+  // mexe mais em estoque.
 
   // Remove do cardápio do dia qualquer produto que não está mais selecionado
   // (cobre desmarcar um produto ao editar). Lista vazia = limpa o dia inteiro.
