@@ -457,7 +457,7 @@ function DevedorCard({
                 className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full border font-medium ${
                   devedor.tipo_conta === "fiado"
                     ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
-                    : "bg-blue-400/10 text-blue-400 border-blue-400/20"
+                    : "bg-emerald-400/10 text-emerald-400 border-emerald-400/20"
                 }`}
               >
                 {devedor.tipo_conta === "fiado" ? "Fiado" : "Crédito"}
