@@ -58,7 +58,11 @@ async function fetchPedidosConfirmados(
   return todos;
 }
 
-export default async function CobrancasPage() {
+export default async function CobrancasPage({
+  searchParams,
+}: {
+  searchParams: { busca?: string };
+}) {
   const supabase = createClient();
 
   const [{ data: devedores }, { data: semCredito }] = await Promise.all([
@@ -165,6 +169,7 @@ export default async function CobrancasPage() {
         initialDevedores={(devedores as any) ?? []}
         ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
         semCredito={(semCredito as any) ?? []}
+        initialSearch={searchParams.busca ?? ""}
       />
     </AppLayout>
   );

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import AppLayout from "@/components/layout/AppLayout";
 import CardapioDoDia from "@/components/dashboard/CardapioDoDia";
 import AlunoListSection from "@/components/dashboard/AlunoListSection";
+import CobrancasHojeSection from "@/components/dashboard/CobrancasHojeSection";
 import Link from "next/link";
 
 // ── constantes ────────────────────────────────────────────────────────────────
@@ -117,6 +118,7 @@ export default async function DashboardPage() {
 
   const hoje = todayBR();
   const { start: hojeStart, end: hojeEnd } = dateRangeBR(hoje);
+  const diaHojeMes = parseInt(hoje.split("-")[2], 10);
 
   // Todas as queries em paralelo
   const [
@@ -127,6 +129,7 @@ export default async function DashboardPage() {
     { count: nOntem },
     { data: rawSaldoBaixo },
     { data: rawCobrancas },
+    { data: rawCobrancasHoje },
     { data: rawCardapio, error: cardapioError },
     { data: produtosAtivos },
     { data: pedidosHojeParaCardapio },
@@ -152,6 +155,12 @@ export default async function DashboardPage() {
     // Fiado com saldo ≤ 0 (cobranças pendentes)
     supabase.from("contas").select("saldo, alunos(nome, turma)")
       .eq("cantina_id", CANTINA_ID).eq("tipo", "fiado").lte("saldo", 0).order("saldo").limit(50),
+
+    // Alunos mensais cujo dia de cobrança é hoje e que estão devendo.
+    supabase.from("alunos").select("id, nome, turma, saldo")
+      .eq("cantina_id", CANTINA_ID).eq("ativo", true)
+      .eq("ciclo_cobranca", "mensal").eq("dia_cobranca", diaHojeMes)
+      .lt("saldo", 0).order("saldo").limit(50),
 
     // Cardápio do dia — client admin (service role): a leitura via client
     // autenticado ficava vazia mesmo com a linha existindo no banco, então
@@ -196,6 +205,13 @@ export default async function DashboardPage() {
     nome:  c.alunos?.nome  ?? "—",
     turma: c.alunos?.turma ?? null,
     saldo: c.saldo ?? 0,
+  }));
+
+  const cobrancasHoje = (rawCobrancasHoje ?? []).map((a: any) => ({
+    id:    a.id as string,
+    nome:  a.nome as string,
+    turma: a.turma ?? null,
+    saldo: a.saldo ?? 0,
   }));
 
   if (cardapioError) {
@@ -320,6 +336,9 @@ export default async function DashboardPage() {
             {metrics.map((m) => <MetricCard key={m.label} metric={m} />)}
           </div>
         </section>
+
+        {/* Cobranças mensais com dia de cobrança hoje */}
+        <CobrancasHojeSection alunos={cobrancasHoje} />
 
         {/* Alertas de saldo baixo */}
         <AlunoListSection

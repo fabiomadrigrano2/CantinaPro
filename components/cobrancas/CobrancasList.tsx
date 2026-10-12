@@ -582,12 +582,14 @@ export default function CobrancasList({
   initialDevedores,
   ciclosSemanaisPorAluno,
   semCredito,
+  initialSearch,
 }: {
   initialDevedores: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   semCredito: AlunoSemCredito[];
+  initialSearch?: string;
 }) {
-  const [search,      setSearch]      = useState("");
+  const [search,      setSearch]      = useState(initialSearch ?? "");
   const [turmaFiltro, setTurmaFiltro] = useState("todas");
   const [preview, setPreview] = useState<{
     devedor: Devedor;

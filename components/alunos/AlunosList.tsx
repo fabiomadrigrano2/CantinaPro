@@ -49,6 +49,11 @@ function getSaldo(aluno: AlunoComConta) {
   return aluno.saldo ?? 0;
 }
 
+function clampDiaCobranca(value: string): number {
+  const n = parseInt(value) || 5;
+  return Math.min(28, Math.max(1, n));
+}
+
 
 function statusBadge(saldo: number) {
   if (saldo > 0)   return { label: "Ativo",     cls: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" };
@@ -329,7 +334,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           nome:                 form.nome.trim(),
           turma:                form.turma.trim() || null,
           ciclo_cobranca:       form.ciclo_cobranca,
-          dia_cobranca:         form.ciclo_cobranca === "mensal" ? parseInt(form.dia_cobranca) || 5 : null,
+          dia_cobranca:         form.ciclo_cobranca === "mensal" ? clampDiaCobranca(form.dia_cobranca) : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
           tipo_conta:           form.tipo_conta,
           saldo:                novoSaldo,
@@ -353,7 +358,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           nome:                 form.nome.trim(),
           turma:                form.turma.trim() || null,
           ciclo_cobranca:       form.ciclo_cobranca,
-          dia_cobranca:         form.ciclo_cobranca === "mensal" ? parseInt(form.dia_cobranca) || 5 : null,
+          dia_cobranca:         form.ciclo_cobranca === "mensal" ? clampDiaCobranca(form.dia_cobranca) : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
           tipo_conta:           form.tipo_conta,
           saldo:                parseFloat(form.saldo_inicial) || 0,
@@ -952,10 +957,10 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   {form.ciclo_cobranca === "mensal" && (
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                        Dia do mês para cobrança <span className="text-red-400">*</span>
+                        Dia de cobrança (1 a 28) <span className="text-red-400">*</span>
                       </label>
                       <input
-                        type="number" required min="1" max="31" step="1"
+                        type="number" required min="1" max="28" step="1"
                         value={form.dia_cobranca}
                         onChange={(e) => set("dia_cobranca", e.target.value)}
                         className={inputCls}
