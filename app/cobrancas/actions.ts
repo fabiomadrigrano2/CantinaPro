@@ -5,6 +5,44 @@ import { revalidatePath } from "next/cache";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
+export type ItemExtrato = { nome_produto: string; quantidade: number };
+export type PedidoExtrato = { criado_em: string; total: number; itens: ItemExtrato[] };
+
+// Busca pedidos confirmados dos últimos 65 dias — intervalo fixo que cobre
+// com folga os 4 filtros de período do Extrato (semana atual, últimos 30
+// dias, mês atual e mês anterior inteiro, mesmo no pior caso de dois meses
+// de 31 dias seguidos).
+export async function buscarExtratoAluno(
+  alunoId: string
+): Promise<{ pedidos?: PedidoExtrato[]; error?: string }> {
+  const supabase = createAdminClient();
+
+  const desde = new Date();
+  desde.setDate(desde.getDate() - 65);
+
+  const { data, error } = await (supabase as any)
+    .from("pedidos")
+    .select("criado_em, total, itens_pedido ( nome_produto, quantidade )")
+    .eq("cantina_id", CANTINA_ID)
+    .eq("aluno_id", alunoId)
+    .eq("status", "confirmado")
+    .gte("criado_em", desde.toISOString())
+    .order("criado_em", { ascending: true });
+
+  if (error) return { error: error.message };
+
+  const pedidos: PedidoExtrato[] = (data ?? []).map((p: any) => ({
+    criado_em: p.criado_em,
+    total: p.total,
+    itens: (p.itens_pedido ?? []).map((i: any) => ({
+      nome_produto: i.nome_produto,
+      quantidade: i.quantidade,
+    })),
+  }));
+
+  return { pedidos };
+}
+
 export async function marcarCiclosComoPagos({
   alunoId,
   ciclos,

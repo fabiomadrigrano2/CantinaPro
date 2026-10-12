@@ -3,6 +3,7 @@
 import { useState, useMemo, useTransition } from "react";
 import type { CicloSemana } from "@/types/cobrancas";
 import { marcarCiclosComoPagos } from "@/app/cobrancas/actions";
+import ExtratoDetalhadoModal from "@/components/cobrancas/ExtratoDetalhadoModal";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -415,6 +416,7 @@ function DevedorCard({
   onPreview: () => void;
 }) {
   const [pagamentoModal, setPagamentoModal] = useState<string | null>(null);
+  const [extratoAberto, setExtratoAberto] = useState(false);
 
   const temTel = !!(devedor.telefone_responsavel?.replace(/\D/g, ""));
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
@@ -437,6 +439,13 @@ function DevedorCard({
         />
       )}
 
+      {extratoAberto && (
+        <ExtratoDetalhadoModal
+          devedor={devedor}
+          onClose={() => setExtratoAberto(false)}
+        />
+      )}
+
       <div className="rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
         {/* Cabeçalho do aluno */}
         <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
@@ -450,6 +459,14 @@ function DevedorCard({
             <span className="text-sm font-bold text-red-400 tabular-nums">
               {fmt(saldoDevedor)}
             </span>
+            <button
+              onClick={() => setExtratoAberto(true)}
+              title="Ver extrato detalhado do aluno"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
+            >
+              <span>📋</span>
+              <span className="hidden sm:inline">Extrato</span>
+            </button>
             <button
               onClick={temTel ? onPreview : undefined}
               disabled={!temTel}
