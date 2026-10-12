@@ -18,6 +18,46 @@ function toDateStr(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
+type PedidoResumo = { aluno_id: string; total: number; criado_em: string };
+
+// Busca todos os pedidos confirmados do período, paginando com .range() —
+// o Supabase/PostgREST limita cada resposta a no máximo 1000 linhas, e com
+// muitos devedores ativos o total de pedidos em 90 dias facilmente ultrapassa
+// isso. Um único .limit(1000) ordenado por criado_em ascendente descartava
+// silenciosamente os pedidos mais recentes (ex.: a semana atual inteira
+// desaparecia da tela de Cobranças assim que o total passava de 1000).
+async function fetchPedidosConfirmados(
+  supabase: ReturnType<typeof createClient>,
+  cantinaId: string,
+  alunoIds: string[],
+  desde: Date
+): Promise<PedidoResumo[]> {
+  const PAGE_SIZE = 1000;
+  const todos: PedidoResumo[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("pedidos")
+      .select("aluno_id, total, criado_em")
+      .eq("cantina_id", cantinaId)
+      .eq("status", "confirmado")
+      .in("aluno_id", alunoIds)
+      .gte("criado_em", desde.toISOString())
+      .order("criado_em", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    todos.push(...(data as any as PedidoResumo[]));
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return todos;
+}
+
 export default async function CobrancasPage() {
   const supabase = createClient();
 
@@ -48,16 +88,8 @@ export default async function CobrancasPage() {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    const [{ data: pedidos }, { data: ciclosDb }] = await Promise.all([
-      supabase
-        .from("pedidos")
-        .select("aluno_id, total, criado_em")
-        .eq("cantina_id", CANTINA_ID)
-        .eq("status", "confirmado")
-        .in("aluno_id", alunoIds)
-        .gte("criado_em", ninetyDaysAgo.toISOString())
-        .order("criado_em", { ascending: true })
-        .limit(1000),
+    const [pedidos, { data: ciclosDb }] = await Promise.all([
+      fetchPedidosConfirmados(supabase, CANTINA_ID, alunoIds, ninetyDaysAgo),
       supabase
         .from("ciclos_cobranca")
         .select("id, aluno_id, semana_inicio, status")
