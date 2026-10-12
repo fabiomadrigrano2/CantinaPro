@@ -316,6 +316,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     const supabase = createClient();
 
     if (editingAluno) {
+      // Nunca deixar o saldo cair para 0 por falha de parsing (campo vazio,
+      // caractere inválido etc.) — preserva o saldo atual do aluno nesse caso,
+      // em vez do fallback `|| 0`, que apagaria uma dívida real ao trocar o
+      // tipo de conta (ex: crédito -80 virando fiado deveria continuar -80).
+      const saldoEditado = parseFloat(form.saldo_inicial);
+      const novoSaldo = Number.isFinite(saldoEditado) ? saldoEditado : editingAluno.saldo;
+
       const { error: alunoError } = await supabase
         .from("alunos")
         .update({
@@ -325,7 +332,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           dia_cobranca:         form.ciclo_cobranca === "mensal" ? parseInt(form.dia_cobranca) || 5 : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
           tipo_conta:           form.tipo_conta,
-          saldo:                parseFloat(form.saldo_inicial) || 0,
+          saldo:                novoSaldo,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
           email_responsavel:    form.email_responsavel.trim()    || null,
           nome_responsavel:     form.nome_responsavel.trim()     || null,
@@ -335,7 +342,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       if (alunoError) { setSaving(false); setFormError(alunoError.message); return; }
 
       // sync contas (best-effort)
-      await (supabase as any).from("contas").update({ saldo: parseFloat(form.saldo_inicial) || 0, tipo: form.tipo_conta as "credito" | "fiado" }).eq("aluno_id", editingAluno.id);
+      await (supabase as any).from("contas").update({ saldo: novoSaldo, tipo: form.tipo_conta as "credito" | "fiado" }).eq("aluno_id", editingAluno.id);
 
       setSaving(false);
     } else {

@@ -62,21 +62,25 @@ export default async function CobrancasPage() {
   const supabase = createClient();
 
   const [{ data: devedores }, { data: semCredito }] = await Promise.all([
+    // Devedores: fiado (sempre devendo) + crédito com saldo negativo (estouraram
+    // o pré-pago). Ambos têm extrato semanal e cobrança via WhatsApp iguais.
     supabase
       .from("alunos")
-      .select("id, nome, turma, saldo, ciclo_cobranca, dia_cobranca, telefone_responsavel, nome_responsavel")
+      .select("id, nome, turma, saldo, tipo_conta, ciclo_cobranca, dia_cobranca, telefone_responsavel, nome_responsavel")
       .eq("cantina_id", CANTINA_ID)
-      .eq("tipo_conta", "fiado")
+      .in("tipo_conta", ["fiado", "credito"])
       .eq("ativo", true)
       .lt("saldo", 0)
       .order("saldo"),
+    // Crédito com saldo exatamente zerado: só precisa de aviso para recarregar,
+    // não de cobrança (saldo negativo de crédito já aparece em devedores acima).
     supabase
       .from("alunos")
       .select("id, nome, turma, saldo, telefone_responsavel")
       .eq("cantina_id", CANTINA_ID)
       .eq("tipo_conta", "credito")
       .eq("ativo", true)
-      .lte("saldo", 0)
+      .eq("saldo", 0)
       .order("nome"),
   ]);
 

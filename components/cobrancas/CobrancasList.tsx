@@ -12,6 +12,7 @@ type Devedor = {
   nome: string;
   turma: string | null;
   saldo: number;
+  tipo_conta: string | null;
   ciclo_cobranca: string | null;
   dia_cobranca: number | null;
   telefone_responsavel: string | null;
@@ -450,7 +451,18 @@ function DevedorCard({
         {/* Cabeçalho do aluno */}
         <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-white truncate">{devedor.nome}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-white truncate">{devedor.nome}</p>
+              <span
+                className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full border font-medium ${
+                  devedor.tipo_conta === "fiado"
+                    ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
+                    : "bg-blue-400/10 text-blue-400 border-blue-400/20"
+                }`}
+              >
+                {devedor.tipo_conta === "fiado" ? "Fiado" : "Crédito"}
+              </span>
+            </div>
             <p className="text-xs text-gray-500 mt-0.5">
               {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
             </p>
@@ -703,7 +715,7 @@ export default function CobrancasList({
             </span>
           </div>
           <p className="text-sm text-gray-500 mb-4">
-            Alunos com conta Crédito com saldo zerado ou negativo. Avise o responsável para fazer recarga.
+            Alunos com conta Crédito com saldo zerado. Avise o responsável para fazer recarga.
           </p>
 
           <div className="rounded-2xl border border-amber-500/15 overflow-hidden">
@@ -726,7 +738,7 @@ export default function CobrancasList({
                 const openPreview = () => {
                   if (temTel)
                     setPreview({
-                      devedor: { ...a, ciclo_cobranca: null, dia_cobranca: null, nome_responsavel: null },
+                      devedor: { ...a, tipo_conta: "credito", ciclo_cobranca: null, dia_cobranca: null, nome_responsavel: null },
                       initialMessage: buildCreditoMessage(a),
                     });
                 };
