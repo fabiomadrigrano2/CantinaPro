@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { salvarHistoricoPagamento } from "@/lib/pagamentos";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
@@ -113,6 +114,18 @@ export async function marcarCiclosComoPagos({
     .from("contas")
     .update({ saldo: novoSaldoConta, atualizado_em: new Date().toISOString() })
     .eq("aluno_id", alunoId);
+
+  const diaMes = (s: string) => s.split("-").reverse().slice(0, 2).join("/");
+  const periodos = [...ciclos]
+    .sort((a, b) => a.semanaInicio.localeCompare(b.semanaInicio))
+    .map((c) => `${diaMes(c.semanaInicio)} a ${diaMes(c.semanaFim)}`);
+  await salvarHistoricoPagamento({
+    alunoId,
+    valor: Math.round(totalPago * 100) / 100,
+    formaPagamento,
+    tipo: "fiado",
+    descricao: `Pagamento ${periodos.length > 1 ? "semanas" : "semana"} ${periodos.join(", ")}`,
+  });
 
   revalidatePath("/cobrancas");
   return {};

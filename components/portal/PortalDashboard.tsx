@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { portalLogout, atualizarLimiteDiario } from "@/app/portal/login/actions";
 import { useState } from "react";
-import type { AlunoPortal, PedidoPortal, WeeklyPoint } from "@/app/portal/dashboard/page";
+import type { AlunoPortal, PedidoPortal, PagamentoPortal, WeeklyPoint } from "@/app/portal/dashboard/page";
 
 const ConsumoChart = dynamic(() => import("./ConsumoChart"), {
   ssr: false,
@@ -139,6 +139,60 @@ function PedidoCard({ pedido }: { pedido: PedidoPortal }) {
   );
 }
 
+function fmtDateFull(iso: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo",
+  }).format(new Date(iso));
+}
+
+function PagamentosRealizados({ pagamentos }: { pagamentos: PagamentoPortal[] }) {
+  const [expandido, setExpandido] = useState(false);
+  const visiveis = expandido ? pagamentos : pagamentos.slice(0, HISTORICO_LIMITE);
+
+  return (
+    <div>
+      <div className="mb-3">
+        <p className="text-sm font-semibold text-white">Pagamentos realizados</p>
+      </div>
+
+      {pagamentos.length === 0 ? (
+        <div className="bg-cp-surface border border-cp-border rounded-2xl px-5 py-10 text-center text-sm text-gray-600">
+          Nenhum pagamento registrado.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <ul className="bg-cp-surface border border-cp-border rounded-2xl divide-y divide-cp-border/60 overflow-hidden">
+            {visiveis.map((p) => (
+              <li key={p.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-300 tabular-nums">{fmtDateFull(p.criado_em)}</p>
+                  {p.observacao && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{p.observacao}</p>
+                  )}
+                </div>
+                <span className="text-sm font-bold text-white tabular-nums shrink-0">{fmt(Number(p.valor))}</span>
+                <span className="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full border text-emerald-400 bg-emerald-400/10 border-emerald-400/20">
+                  Pago
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {pagamentos.length > HISTORICO_LIMITE && (
+            <button
+              type="button"
+              onClick={() => setExpandido((v) => !v)}
+              className="w-full py-2.5 px-4 bg-cp-surface hover:bg-cp-elevated border border-cp-border text-sm font-medium text-gray-300 hover:text-white rounded-xl transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-cp-bg"
+            >
+              {expandido ? "Ver menos" : `Ver mais (${pagamentos.length - HISTORICO_LIMITE})`}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ConfiguracoesSaldo({ limiteDiarioInicial }: { limiteDiarioInicial: number }) {
   const [limite,  setLimite]  = useState(limiteDiarioInicial);
   const [saving,  setSaving]  = useState(false);
@@ -221,8 +275,9 @@ function ConfiguracoesSaldo({ limiteDiarioInicial }: { limiteDiarioInicial: numb
 }
 
 export default function PortalDashboard({
-  aluno, pedidos, totalMes, weeklyData, hoje, responsavelNome,
+  aluno, pedidos, totalMes, weeklyData, hoje, responsavelNome, pagamentos,
 }: {
+  pagamentos:      PagamentoPortal[];
   aluno:           AlunoPortal;
   pedidos:         PedidoPortal[];
   totalMes:        number;
@@ -387,6 +442,9 @@ export default function PortalDashboard({
             </div>
           )}
         </div>
+
+        {/* Pagamentos realizados */}
+        <PagamentosRealizados pagamentos={pagamentos} />
 
         {/* Configurações */}
         <div>

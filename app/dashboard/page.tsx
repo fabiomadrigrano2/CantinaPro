@@ -4,6 +4,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import CardapioDoDia from "@/components/dashboard/CardapioDoDia";
 import AlunoListSection from "@/components/dashboard/AlunoListSection";
 import CobrancasHojeSection from "@/components/dashboard/CobrancasHojeSection";
+import AlertasSaldoBaixoSection, { type AlunoAlertaSaldo } from "@/components/dashboard/AlertasSaldoBaixoSection";
 import Link from "next/link";
 
 // ── constantes ────────────────────────────────────────────────────────────────
@@ -133,6 +134,7 @@ export default async function DashboardPage() {
     { data: rawCardapio, error: cardapioError },
     { data: produtosAtivos },
     { data: pedidosHojeParaCardapio },
+    { data: rawAlertasSaldo, error: alertasError },
   ] = await Promise.all([
     supabase.auth.getUser(),
 
@@ -183,6 +185,13 @@ export default async function DashboardPage() {
       .select("itens_pedido(produto_id, quantidade)")
       .eq("cantina_id", CANTINA_ID).eq("status", "confirmado")
       .gte("criado_em", hojeStart).lt("criado_em", hojeEnd),
+
+    // Alunos com limite de alerta de saldo configurado — a comparação
+    // saldo < limite é feita abaixo (PostgREST não compara duas colunas)
+    supabase.from("alunos")
+      .select("id, nome, turma, saldo, limite_alerta_saldo, nome_responsavel, telefone_responsavel")
+      .eq("cantina_id", CANTINA_ID).eq("ativo", true)
+      .not("limite_alerta_saldo", "is", null),
   ]);
 
   // ── processar dados ───────────────────────────────────────────────────────────
@@ -213,6 +222,22 @@ export default async function DashboardPage() {
     turma: a.turma ?? null,
     saldo: a.saldo ?? 0,
   }));
+
+  if (alertasError) {
+    console.error("[dashboard] falha ao buscar alertas de saldo:", alertasError.message);
+  }
+  const alertasSaldo: AlunoAlertaSaldo[] = (rawAlertasSaldo ?? [])
+    .map((a: any) => ({
+      id:                  a.id as string,
+      nome:                a.nome as string,
+      turma:               a.turma ?? null,
+      saldo:               Number(a.saldo ?? 0),
+      limite:              Number(a.limite_alerta_saldo),
+      nomeResponsavel:     a.nome_responsavel ?? null,
+      telefoneResponsavel: a.telefone_responsavel ?? null,
+    }))
+    .filter((a) => a.saldo < a.limite)
+    .sort((a, b) => a.saldo - b.saldo);
 
   if (cardapioError) {
     console.error("[dashboard] falha ao buscar cardapio_diario:", cardapioError.message);
@@ -339,6 +364,9 @@ export default async function DashboardPage() {
 
         {/* Cobranças mensais com dia de cobrança hoje */}
         <CobrancasHojeSection alunos={cobrancasHoje} />
+
+        {/* Alunos abaixo do limite de alerta de saldo configurado no cadastro */}
+        <AlertasSaldoBaixoSection alunos={alertasSaldo} />
 
         {/* Alertas de saldo baixo */}
         <AlunoListSection

@@ -32,6 +32,13 @@ export type AlunoPortal = {
 
 export type WeeklyPoint = { semana: string; total: number };
 
+export type PagamentoPortal = {
+  id:         string;
+  valor:      number;
+  observacao: string | null;
+  criado_em:  string;
+};
+
 function todayBR() {
   const br = new Date(Date.now() - 3 * 60 * 60 * 1000);
   return { year: br.getUTCFullYear(), month: br.getUTCMonth() + 1, day: br.getUTCDate() };
@@ -164,6 +171,16 @@ export default async function PortalDashboardPage() {
 
   const pedidosList = (pedidos as PedidoPortal[]) ?? [];
 
+  const { data: pagamentos, error: pagamentosError } = await admin
+    .from("pagamentos")
+    .select("id, valor, observacao, criado_em")
+    .eq("aluno_id", alunoId)
+    .eq("cantina_id", CANTINA_ID)
+    .eq("status", "confirmado")
+    .order("criado_em", { ascending: false })
+    .limit(50);
+  if (pagamentosError) console.error("[dashboard] pagamentos error:", pagamentosError.message);
+
   const monthStart = new Date(Date.UTC(today.year, today.month - 1, 1, 3, 0, 0));
   const totalMes   = pedidosList
     .filter(p => new Date(p.criado_em) >= monthStart)
@@ -179,6 +196,7 @@ export default async function PortalDashboardPage() {
       weeklyData={weeklyData}
       hoje={hoje}
       responsavelNome={responsavel.nome?.trim() || null}
+      pagamentos={(pagamentos as PagamentoPortal[]) ?? []}
     />
   );
 }

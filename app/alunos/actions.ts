@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { salvarHistoricoPagamento } from "@/lib/pagamentos";
 import type { Database } from "@/types/database.types";
 
 type ContaTipo = Database["public"]["Enums"]["conta_tipo"];
@@ -262,16 +263,37 @@ export async function registrarPagamentoFiado({
   const obs =
     observacao?.trim() ||
     `Pagamento recebido - R$ ${valor.toFixed(2).replace(".", ",")}`;
-  await supabase.from("pagamentos").insert({
-    cantina_id: CANTINA_ID_TEMP,
-    aluno_id: alunoId,
+  await salvarHistoricoPagamento({
+    alunoId,
     valor,
-    forma_pagamento: formaPagamento,
-    observacao: obs,
+    formaPagamento,
     tipo: "fiado",
+    descricao: obs,
   });
 
   revalidatePath("/alunos");
   revalidatePath("/cobrancas");
   return {};
+}
+
+export async function registrarHistoricoCredito({
+  alunoId,
+  valor,
+  formaPagamento,
+  observacao,
+}: {
+  alunoId: string;
+  valor: number;
+  formaPagamento: string;
+  observacao?: string | null;
+}): Promise<void> {
+  await salvarHistoricoPagamento({
+    alunoId,
+    valor,
+    formaPagamento,
+    tipo: "credito",
+    descricao:
+      observacao?.trim() ||
+      `Recarga de crédito - R$ ${valor.toFixed(2).replace(".", ",")}`,
+  });
 }

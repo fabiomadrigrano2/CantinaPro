@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { addResponsavel, removeResponsavel, registrarPagamentoFiado } from "@/app/alunos/actions";
+import { addResponsavel, removeResponsavel, registrarPagamentoFiado, registrarHistoricoCredito } from "@/app/alunos/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -21,6 +21,7 @@ type AlunoComConta = {
   telefone_responsavel: string | null;
   email_responsavel: string | null;
   nome_responsavel: string | null;
+  limite_alerta_saldo: number | null;
 };
 
 type Responsavel = {
@@ -52,6 +53,12 @@ function getSaldo(aluno: AlunoComConta) {
 function clampDiaCobranca(value: string): number {
   const n = parseInt(value) || 5;
   return Math.min(28, Math.max(1, n));
+}
+
+// Campo vazio = sem alerta (NULL). Aceita vírgula como separador decimal.
+function parseLimiteAlerta(value: string): number | null {
+  const n = parseFloat(value.replace(",", "."));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n * 100) / 100 : null;
 }
 
 
@@ -87,7 +94,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
   });
   const [form,          setForm]          = useState({
     nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0",
-    ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0",
+    ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", limite_alerta_saldo: "",
     telefone_responsavel: "", email_responsavel: "", nome_responsavel: "",
   });
   const [responsaveis,   setResponsaveis]   = useState<Responsavel[]>([]);
@@ -136,7 +143,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
 
   function openModal() {
     setEditingAluno(null);
-    setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", telefone_responsavel: "", email_responsavel: "", nome_responsavel: "" });
+    setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", limite_alerta_saldo: "", telefone_responsavel: "", email_responsavel: "", nome_responsavel: "" });
     setResponsaveis([]);
     setRespForm({ nome: "", email: "", parentesco: "responsavel" });
     setRespError(null);
@@ -154,6 +161,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       ciclo_cobranca:       aluno.ciclo_cobranca ?? "mensal",
       dia_cobranca:         String(aluno.dia_cobranca ?? 5),
       limite_diario:        String(aluno.limite_diario ?? 0),
+      limite_alerta_saldo:  aluno.limite_alerta_saldo != null ? String(aluno.limite_alerta_saldo) : "",
       telefone_responsavel: aluno.telefone_responsavel ?? "",
       email_responsavel:    aluno.email_responsavel    ?? "",
       nome_responsavel:     aluno.nome_responsavel     ?? "",
@@ -241,11 +249,10 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     const { error } = await supabase.from("alunos").update({ saldo: novoSaldo }).eq("id", creditoAluno.id);
     if (error) { setPagamentoError(error.message); setPagamentoSaving(false); return; }
     await supabase.from("contas").update({ saldo: novoSaldo }).eq("aluno_id", creditoAluno.id);
-    await supabase.from("pagamentos").insert({
-      cantina_id: CANTINA_ID, aluno_id: creditoAluno.id, valor,
-      forma_pagamento: pagamentoForm.forma_pagamento,
-      observacao: pagamentoForm.observacao.trim() || null,
-      tipo: "credito",
+    await registrarHistoricoCredito({
+      alunoId: creditoAluno.id, valor,
+      formaPagamento: pagamentoForm.forma_pagamento,
+      observacao: pagamentoForm.observacao,
     });
     setPagamentoSaving(false);
     setCreditoAluno(null);
@@ -336,6 +343,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           ciclo_cobranca:       form.ciclo_cobranca,
           dia_cobranca:         form.ciclo_cobranca === "mensal" ? clampDiaCobranca(form.dia_cobranca) : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
+          limite_alerta_saldo:  parseLimiteAlerta(form.limite_alerta_saldo),
           tipo_conta:           form.tipo_conta,
           saldo:                novoSaldo,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
@@ -360,6 +368,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           ciclo_cobranca:       form.ciclo_cobranca,
           dia_cobranca:         form.ciclo_cobranca === "mensal" ? clampDiaCobranca(form.dia_cobranca) : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
+          limite_alerta_saldo:  parseLimiteAlerta(form.limite_alerta_saldo),
           tipo_conta:           form.tipo_conta,
           saldo:                parseFloat(form.saldo_inicial) || 0,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
@@ -920,6 +929,32 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   <span>Sem limite</span>
                   <span>R$ 50</span>
                 </div>
+              </div>
+
+              {/* Limite de alerta de saldo */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Limite de alerta de saldo
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 pointer-events-none">
+                    R$
+                  </span>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step="0.01"
+                    placeholder="Sem alerta"
+                    value={form.limite_alerta_saldo}
+                    onChange={(e) => set("limite_alerta_saldo", e.target.value)}
+                    className={`${inputCls} pl-11`}
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5">
+                  Quando o saldo ficar abaixo desse valor, o aluno aparece em
+                  &ldquo;Alertas de Saldo Baixo&rdquo; no Dashboard. Deixe vazio para não alertar.
+                </p>
               </div>
 
               {/* Ciclo de cobrança e dia — apenas para Fiado */}
