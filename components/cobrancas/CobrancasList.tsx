@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useEffect } from "react";
 import type { CicloSemana } from "@/types/cobrancas";
-import { marcarCiclosComoPagos } from "@/app/cobrancas/actions";
+import { marcarCiclosComoPagos, quitarTudo } from "@/app/cobrancas/actions";
 import ExtratoDetalhadoModal from "@/components/cobrancas/ExtratoDetalhadoModal";
 import ExtratoPdfModal from "@/components/cobrancas/ExtratoPdfModal";
 
@@ -406,6 +406,183 @@ function ConfirmacaoPagamentoModal({
   );
 }
 
+// ── modal de quitação total ──────────────────────────────────────────────────
+
+function QuitarTudoModal({
+  devedor,
+  ciclos,
+  saldoAnterior,
+  onClose,
+}: {
+  devedor: Devedor;
+  ciclos: CicloSemana[];
+  saldoAnterior: number;
+  onClose: () => void;
+}) {
+  const [formaPagamento, setFormaPagamento] = useState("dinheiro");
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  const totalQuitar = Math.abs(devedor.saldo);
+  const pendentes = ciclos.filter((c) => c.status !== "pago");
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => e.key === "Escape" && !isPending && onClose();
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, isPending]);
+
+  function handleConfirmar() {
+    setError(null);
+    startTransition(async () => {
+      const result = await quitarTudo({
+        alunoId: devedor.id,
+        ciclos: pendentes.map((c) => ({
+          semanaInicio: c.semana_inicio,
+          semanaFim: c.semana_fim,
+          total: c.total,
+        })),
+        formaPagamento,
+      });
+      if (result.error) setError(result.error);
+      else onClose();
+    });
+  }
+
+  const formasPagamento = [
+    { id: "dinheiro", label: "Dinheiro" },
+    { id: "pix",      label: "Pix"      },
+    { id: "cartao",   label: "Cartão"   },
+  ];
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+      onClick={() => !isPending && onClose()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quitar-tudo-titulo"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Cabeçalho */}
+        <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
+          <div className="min-w-0">
+            <h2 id="quitar-tudo-titulo" className="text-base font-semibold text-white">Quitar tudo</h2>
+            <p className="text-sm text-gray-400 mt-0.5 truncate">
+              {devedor.nome}
+              {devedor.turma && <span className="text-gray-600"> · Turma {devedor.turma}</span>}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={isPending}
+            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0 disabled:opacity-40"
+            aria-label="Fechar"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Corpo */}
+        <div className="p-5 flex flex-col gap-3 flex-1 overflow-y-auto">
+          <p className="text-xs text-gray-500">Serão quitados:</p>
+
+          <ul className="rounded-xl border border-cp-border bg-cp-elevated divide-y divide-cp-border">
+            {saldoAnterior > 0 && (
+              <li className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium bg-purple-400/10 text-purple-300 border-purple-400/20">
+                    Anterior
+                  </span>
+                  <span className="text-sm text-gray-300">Saldo anterior</span>
+                </div>
+                <span className="text-sm font-semibold text-white tabular-nums shrink-0">{fmt(saldoAnterior)}</span>
+              </li>
+            )}
+            {pendentes.map((c) => (
+              <li key={c.semana_inicio} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <span className="text-sm text-gray-300 tabular-nums whitespace-nowrap">
+                  {dataBR(c.semana_inicio)} → {dataBR(c.semana_fim)}
+                </span>
+                <span className="text-sm font-semibold text-white tabular-nums shrink-0">{fmt(c.total)}</span>
+              </li>
+            ))}
+            {saldoAnterior <= 0 && pendentes.length === 0 && (
+              <li className="px-4 py-2.5 text-sm text-gray-400">Saldo em aberto de períodos anteriores</li>
+            )}
+          </ul>
+
+          {/* Forma de pagamento */}
+          <div className="mt-1">
+            <p className="text-xs text-gray-500 mb-2">Forma de pagamento:</p>
+            <div className="flex gap-2">
+              {formasPagamento.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFormaPagamento(f.id)}
+                  disabled={isPending}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    formaPagamento === f.id
+                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
+                      : "bg-cp-elevated border-cp-border text-gray-400 hover:border-gray-500"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Total em destaque */}
+          <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25 mt-1">
+            <span className="text-sm font-medium text-emerald-300">Total a quitar</span>
+            <span className="text-lg font-bold text-emerald-400 tabular-nums">{fmt(totalQuitar)}</span>
+          </div>
+          <p className="text-xs text-gray-500">
+            O saldo do aluno ficará zerado e o pagamento aparecerá no Portal do Responsável.
+          </p>
+
+          {error && <p className="text-xs text-red-400">{error}</p>}
+        </div>
+
+        {/* Rodapé */}
+        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+          <button
+            onClick={onClose}
+            disabled={isPending}
+            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg disabled:opacity-40"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirmar}
+            disabled={isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isPending ? (
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            )}
+            {isPending ? "Quitando..." : "Confirmar quitação"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── cartão de aluno com ciclos semanais ───────────────────────────────────────
 
 function DevedorCard({
@@ -420,6 +597,7 @@ function DevedorCard({
   const [pagamentoModal, setPagamentoModal] = useState<string | null>(null);
   const [extratoAberto, setExtratoAberto] = useState(false);
   const [pdfAberto, setPdfAberto] = useState(false);
+  const [quitarAberto, setQuitarAberto] = useState(false);
 
   const temTel = !!(devedor.telefone_responsavel?.replace(/\D/g, ""));
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
@@ -456,6 +634,15 @@ function DevedorCard({
         />
       )}
 
+      {quitarAberto && (
+        <QuitarTudoModal
+          devedor={devedor}
+          ciclos={ciclos}
+          saldoAnterior={saldoAnterior}
+          onClose={() => setQuitarAberto(false)}
+        />
+      )}
+
       <div className="rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
         {/* Cabeçalho do aluno */}
         <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
@@ -476,7 +663,7 @@ function DevedorCard({
               {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
             </p>
           </div>
-          <div className="flex items-center gap-3 shrink-0 ml-4">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-3 sm:ml-4">
             <span className="text-sm font-bold text-red-400 tabular-nums">
               {fmt(saldoDevedor)}
             </span>
@@ -509,6 +696,18 @@ function DevedorCard({
               {WHATSAPP_ICON}
               <span className="hidden sm:inline">WhatsApp</span>
             </button>
+            {saldoDevedor > 0 && (
+              <button
+                onClick={() => setQuitarAberto(true)}
+                title="Quitar toda a dívida do aluno"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="hidden sm:inline">Quitar tudo</span>
+              </button>
+            )}
           </div>
         </div>
 

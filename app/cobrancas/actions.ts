@@ -131,3 +131,74 @@ export async function marcarCiclosComoPagos({
   revalidatePath("/cobrancas");
   return {};
 }
+
+// Quita toda a dívida do aluno: marca todos os ciclos pendentes como pagos,
+// zera o saldo devedor (inclusive saldo anterior ao app) e registra um único
+// pagamento no histórico. O valor vem do banco, não da tela.
+export async function quitarTudo({
+  alunoId,
+  ciclos,
+  formaPagamento,
+}: {
+  alunoId: string;
+  ciclos: Array<{ semanaInicio: string; semanaFim: string; total: number }>;
+  formaPagamento: string;
+}): Promise<{ error?: string }> {
+  const supabase = createAdminClient();
+
+  const [{ data: aluno, error: alunoError }, { data: conta }] = await Promise.all([
+    supabase.from("alunos").select("saldo").eq("id", alunoId).single(),
+    supabase.from("contas").select("saldo").eq("aluno_id", alunoId).maybeSingle(),
+  ]);
+  if (alunoError || !aluno) return { error: "Aluno não encontrado" };
+
+  const saldoAluno = Number(aluno.saldo ?? 0);
+  const valorQuitado = Math.round(Math.max(0, -saldoAluno) * 100) / 100;
+  if (valorQuitado <= 0) return { error: "Este aluno não tem saldo devedor para quitar." };
+
+  for (const ciclo of ciclos) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: cicloError } = await (supabase as any)
+      .from("ciclos_cobranca")
+      .upsert(
+        {
+          cantina_id: CANTINA_ID,
+          aluno_id: alunoId,
+          semana_inicio: ciclo.semanaInicio,
+          semana_fim: ciclo.semanaFim,
+          total: ciclo.total,
+          status: "pago",
+          forma_pagamento: formaPagamento,
+        },
+        { onConflict: "cantina_id,aluno_id,semana_inicio" }
+      );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (cicloError) return { error: (cicloError as any).message };
+  }
+
+  const { error: errAluno } = await supabase
+    .from("alunos")
+    .update({ saldo: 0, conta_paga: true })
+    .eq("id", alunoId);
+  if (errAluno) return { error: errAluno.message };
+
+  if (conta && Number(conta.saldo ?? 0) < 0) {
+    await supabase
+      .from("contas")
+      .update({ saldo: 0, atualizado_em: new Date().toISOString() })
+      .eq("aluno_id", alunoId);
+  }
+
+  await salvarHistoricoPagamento({
+    alunoId,
+    valor: valorQuitado,
+    formaPagamento,
+    tipo: "fiado",
+    descricao: `Quitação total - R$ ${valorQuitado.toFixed(2).replace(".", ",")}`,
+  });
+
+  revalidatePath("/cobrancas");
+  revalidatePath("/alunos");
+  revalidatePath("/dashboard");
+  return {};
+}
