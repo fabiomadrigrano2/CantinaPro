@@ -191,7 +191,8 @@ export default async function DashboardPage() {
     supabase.from("alunos")
       .select("id, nome, turma, saldo, limite_alerta_saldo, nome_responsavel, telefone_responsavel")
       .eq("cantina_id", CANTINA_ID).eq("ativo", true)
-      .not("limite_alerta_saldo", "is", null),
+      .not("limite_alerta_saldo", "is", null)
+      .lt("saldo", 0),
   ]);
 
   // ── processar dados ───────────────────────────────────────────────────────────
@@ -236,7 +237,8 @@ export default async function DashboardPage() {
       nomeResponsavel:     a.nome_responsavel ?? null,
       telefoneResponsavel: a.telefone_responsavel ?? null,
     }))
-    .filter((a) => a.saldo < a.limite)
+    // Só alerta saldo negativo: R$ 0,00 ou positivo nunca entra, mesmo com limite
+    .filter((a) => a.saldo < 0 && a.saldo < a.limite)
     .sort((a, b) => a.saldo - b.saldo);
 
   if (cardapioError) {
