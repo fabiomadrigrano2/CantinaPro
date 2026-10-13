@@ -84,8 +84,9 @@ function getPeriodo(tipo: Periodo, hoje: string): { inicio: string; fim: string;
   return { inicio, fim: hoje, descricao: `${diaMes(inicio)} a ${diaMes(hoje)}` };
 }
 
-function AlertaSaldoBaixo({ nome, saldo }: { nome: string; saldo: number }) {
-  if (saldo >= 10) return null;
+function AlertaSaldoBaixo({ nome, saldo, tipoConta }: { nome: string; saldo: number; tipoConta: string }) {
+  // Só crédito pré-pago: no fiado, saldo R$ 0,00 é conta em dia
+  if (tipoConta !== "credito" || saldo >= 10) return null;
   return (
     <div className="flex gap-3 items-start rounded-2xl border border-yellow-500/40 bg-yellow-500/10 px-4 py-3.5">
       <span className="text-xl shrink-0 mt-0.5">⚠️</span>
@@ -348,7 +349,7 @@ export default function PortalDashboard({
       <main className="max-w-2xl mx-auto p-4 space-y-5">
 
         {/* Alerta de saldo baixo */}
-        <AlertaSaldoBaixo nome={aluno.nome} saldo={aluno.saldo} />
+        <AlertaSaldoBaixo nome={aluno.nome} saldo={aluno.saldo} tipoConta={aluno.tipo_conta} />
 
         {aluno.turma && (
           <p className="text-sm text-gray-500">
@@ -360,7 +361,7 @@ export default function PortalDashboard({
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-cp-surface border border-cp-border rounded-2xl px-4 py-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Saldo atual</p>
-            <p className={`text-2xl font-bold tabular-nums ${aluno.saldo < 0 ? "text-red-400" : aluno.saldo < 10 ? "text-yellow-400" : "text-emerald-400"}`}>
+            <p className={`text-2xl font-bold tabular-nums ${aluno.saldo < 0 ? "text-red-400" : aluno.tipo_conta === "credito" && aluno.saldo < 10 ? "text-yellow-400" : "text-emerald-400"}`}>
               {fmt(aluno.saldo)}
             </p>
             <p className="text-xs text-gray-600 mt-0.5">

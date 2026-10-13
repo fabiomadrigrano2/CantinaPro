@@ -150,9 +150,10 @@ export default async function DashboardPage() {
     supabase.from("pedidos").select("id", { count: "exact", head: true })
       .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", yesterdayISO).lt("created_at", todayISO),
 
-    // Alunos com saldo baixo ≤ R$ 10 (métrica 3 + seção de alertas)
+    // Alunos com saldo baixo ≤ R$ 10 (métrica 3 + seção de alertas).
+    // Só crédito pré-pago: no fiado, saldo R$ 0,00 é conta em dia.
     supabase.from("contas").select("saldo, alunos(nome, turma)")
-      .eq("cantina_id", CANTINA_ID).lte("saldo", 10).order("saldo").limit(50),
+      .eq("cantina_id", CANTINA_ID).eq("tipo", "credito").lte("saldo", 10).order("saldo").limit(50),
 
     // Fiado com saldo ≤ 0 (cobranças pendentes)
     supabase.from("contas").select("saldo, alunos(nome, turma)")
@@ -190,7 +191,7 @@ export default async function DashboardPage() {
     // saldo < limite é feita abaixo (PostgREST não compara duas colunas)
     supabase.from("alunos")
       .select("id, nome, turma, saldo, limite_alerta_saldo, nome_responsavel, telefone_responsavel")
-      .eq("cantina_id", CANTINA_ID).eq("ativo", true)
+      .eq("cantina_id", CANTINA_ID).eq("ativo", true).eq("tipo_conta", "credito")
       .not("limite_alerta_saldo", "is", null)
       .lt("saldo", 0),
   ]);
