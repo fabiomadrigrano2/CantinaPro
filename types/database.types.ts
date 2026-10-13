@@ -262,6 +262,7 @@ export type Database = {
           email_responsavel: string | null;
           nome_responsavel: string | null;
           limite_alerta_saldo: number | null;
+          notificar_consumo: boolean | null;
         };
         Insert: {
           id?: string;
@@ -283,6 +284,7 @@ export type Database = {
           email_responsavel?: string | null;
           nome_responsavel?: string | null;
           limite_alerta_saldo?: number | null;
+          notificar_consumo?: boolean | null;
         };
         Update: {
           id?: string;
@@ -304,6 +306,7 @@ export type Database = {
           email_responsavel?: string | null;
           nome_responsavel?: string | null;
           limite_alerta_saldo?: number | null;
+          notificar_consumo?: boolean | null;
         };
         Relationships: [
           {

@@ -4,6 +4,7 @@ import { useState, useMemo, useTransition } from "react";
 import type { CicloSemana } from "@/types/cobrancas";
 import { marcarCiclosComoPagos } from "@/app/cobrancas/actions";
 import ExtratoDetalhadoModal from "@/components/cobrancas/ExtratoDetalhadoModal";
+import ExtratoPdfModal from "@/components/cobrancas/ExtratoPdfModal";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -418,6 +419,7 @@ function DevedorCard({
 }) {
   const [pagamentoModal, setPagamentoModal] = useState<string | null>(null);
   const [extratoAberto, setExtratoAberto] = useState(false);
+  const [pdfAberto, setPdfAberto] = useState(false);
 
   const temTel = !!(devedor.telefone_responsavel?.replace(/\D/g, ""));
   const semanaAtualStr = toDateStrClient(getWeekStartClient(new Date()));
@@ -444,6 +446,13 @@ function DevedorCard({
         <ExtratoDetalhadoModal
           devedor={devedor}
           onClose={() => setExtratoAberto(false)}
+        />
+      )}
+
+      {pdfAberto && (
+        <ExtratoPdfModal
+          aluno={devedor}
+          onClose={() => setPdfAberto(false)}
         />
       )}
 
@@ -478,6 +487,14 @@ function DevedorCard({
             >
               <span>📋</span>
               <span className="hidden sm:inline">Extrato</span>
+            </button>
+            <button
+              onClick={() => setPdfAberto(true)}
+              title="Baixar extrato em PDF"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
+            >
+              <span>📄</span>
+              <span className="hidden sm:inline">PDF</span>
             </button>
             <button
               onClick={temTel ? onPreview : undefined}

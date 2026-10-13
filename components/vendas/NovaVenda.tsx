@@ -13,6 +13,8 @@ type Aluno = {
   saldo: number;
   limite_diario: number;
   tipo: string;
+  notificarConsumo: boolean;
+  telefoneResponsavel: string | null;
 };
 
 type Produto = {
@@ -374,6 +376,21 @@ type Phase = "search" | "products" | "voice-confirm" | "success";
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+function buildNotificacaoConsumo(
+  nomeAluno: string,
+  itens: { product: Produto; qty: number }[],
+  total: number,
+  saldoAtual: number,
+): string {
+  const linhas = itens.map(({ product, qty }) => `- ${product.nome} x${qty} — ${fmt(product.preco * qty)}`);
+  return (
+    `${nomeAluno} acabou de comprar na cantina:\n` +
+    `${linhas.join("\n")}\n` +
+    `Total: ${fmt(total)}\n` +
+    `Saldo atual: ${fmt(saldoAtual)}`
+  );
+}
+
 function balanceColor(v: number) {
   if (v <= 0) return "text-red-400";
   if (v < 10) return "text-amber-400";
@@ -395,6 +412,7 @@ export default function NovaVenda() {
   const [saleError, setSaleError] = useState<string | null>(null);
   const [successName, setSuccessName] = useState("");
   const [saldoBaixoAviso, setSaldoBaixoAviso] = useState<string | null>(null);
+  const [notificacaoConsumo, setNotificacaoConsumo] = useState<{ texto: string; tel: string } | null>(null);
   const [cardapioIds, setCardapioIds] = useState<Set<string>>(new Set());
 
   // Voice
@@ -421,7 +439,7 @@ export default function NovaVenda() {
       ] = await Promise.all([
         supabase
           .from("alunos")
-          .select("id, nome, turma, limite_diario, tipo_conta, saldo")
+          .select("id, nome, turma, limite_diario, tipo_conta, saldo, notificar_consumo, telefone_responsavel")
           .eq("cantina_id", CANTINA_ID)
           .eq("ativo", true)
           .order("nome"),
@@ -453,6 +471,8 @@ export default function NovaVenda() {
           limite_diario: a.limite_diario ?? 0,
           saldo: a.saldo ?? 0,
           tipo: a.tipo_conta ?? "credito",
+          notificarConsumo: a.notificar_consumo === true,
+          telefoneResponsavel: a.telefone_responsavel ?? null,
         }))
       );
 
@@ -814,19 +834,32 @@ export default function NovaVenda() {
         ? `Atenção! O saldo de ${selectedAluno.nome.split(" ")[0]} zerou. Avise o responsável para recarregar.`
         : null;
 
+    const telResp = selectedAluno.telefoneResponsavel?.replace(/\D/g, "") ?? "";
+    const notificacao =
+      selectedAluno.notificarConsumo && telResp
+        ? buildNotificacaoConsumo(selectedAluno.nome, cartItems, total, novoSaldo)
+        : null;
+
     setSaldoBaixoAviso(aviso);
     setSuccessName(selectedAluno.nome);
+    setNotificacaoConsumo(notificacao ? { texto: notificacao, tel: telResp } : null);
     setConfirming(false);
     setPhase("success");
 
-    setTimeout(() => {
-      setSelectedAluno(null);
-      setCart({});
-      setSaleError(null);
-      setVoiceWarning(null);
-      setSaldoBaixoAviso(null);
-      setPhase("search");
-    }, aviso ? 4000 : 2000);
+    // Com notificação pendente, a tela espera o operador enviar ou pular
+    if (!notificacao) {
+      setTimeout(resetAposVenda, aviso ? 4000 : 2000);
+    }
+  }
+
+  function resetAposVenda() {
+    setSelectedAluno(null);
+    setCart({});
+    setSaleError(null);
+    setVoiceWarning(null);
+    setSaldoBaixoAviso(null);
+    setNotificacaoConsumo(null);
+    setPhase("search");
   }
 
   // ── SUCCESS ────────────────────────────────────────────────────────────────
@@ -846,16 +879,47 @@ export default function NovaVenda() {
             ⚠️ {saldoBaixoAviso}
           </div>
         )}
-        <div className="flex gap-1.5 mt-2">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="w-2 h-2 rounded-full bg-emerald-500/50 animate-pulse"
-              style={{ animationDelay: `${i * 200}ms` }}
-            />
-          ))}
-        </div>
-        <p className="text-xs text-gray-600 mt-1">Pronto para próxima venda...</p>
+        {notificacaoConsumo ? (
+          <div className="w-full max-w-sm rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
+            <p className="px-4 pt-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Notificar responsável
+            </p>
+            <pre className="px-4 py-3 text-sm text-gray-300 whitespace-pre-wrap font-sans leading-relaxed">
+              {notificacaoConsumo.texto}
+            </pre>
+            <div className="flex gap-2 px-4 pb-4">
+              <button
+                type="button"
+                onClick={resetAposVenda}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-cp-elevated border border-cp-border transition"
+              >
+                Pular
+              </button>
+              <a
+                href={`https://wa.me/55${notificacaoConsumo.tel}?text=${encodeURIComponent(notificacaoConsumo.texto)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={resetAposVenda}
+                className="flex-[2] py-2.5 rounded-xl text-sm font-semibold text-white text-center bg-emerald-500 hover:bg-emerald-600 shadow shadow-emerald-500/20 transition"
+              >
+                Enviar no WhatsApp
+              </a>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex gap-1.5 mt-2">
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="w-2 h-2 rounded-full bg-emerald-500/50 animate-pulse"
+                  style={{ animationDelay: `${i * 200}ms` }}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-gray-600 mt-1">Pronto para próxima venda...</p>
+          </>
+        )}
       </div>
     );
   }

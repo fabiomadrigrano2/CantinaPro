@@ -11,7 +11,7 @@ type Devedor = {
   telefone_responsavel: string | null;
 };
 
-type Periodo = "semana_atual" | "ultimos_30" | "mes_atual" | "mes_anterior";
+export type Periodo = "semana_atual" | "ultimos_30" | "mes_atual" | "mes_anterior";
 
 // ── helpers de formatação ────────────────────────────────────────────────────
 
@@ -33,7 +33,7 @@ function buildWhatsAppUrl(tel: string, message: string): string {
 
 // ── helpers de data (BR = UTC-3 fixo, sem horário de verão desde 2019) ───────
 
-function todayBR(): string {
+export function todayBR(): string {
   const brTime = new Date(Date.now() - 3 * 60 * 60 * 1000);
   const y = brTime.getUTCFullYear();
   const m = String(brTime.getUTCMonth() + 1).padStart(2, "0");
@@ -41,7 +41,7 @@ function todayBR(): string {
   return `${y}-${m}-${d}`;
 }
 
-function toBRDateStr(iso: string): string {
+export function toBRDateStr(iso: string): string {
   const brTime = new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
   const y = brTime.getUTCFullYear();
   const m = String(brTime.getUTCMonth() + 1).padStart(2, "0");
@@ -84,7 +84,7 @@ function getWeekStartStr(dateStr: string): string {
   return toYMD(d);
 }
 
-function getPeriodo(tipo: Periodo, todayStr: string): { inicio: string; fim: string; label: string } {
+export function getPeriodo(tipo: Periodo, todayStr: string): { inicio: string; fim: string; label: string } {
   const [y, m] = todayStr.split("-").map(Number);
 
   if (tipo === "semana_atual") {
@@ -111,7 +111,7 @@ function getPeriodo(tipo: Periodo, todayStr: string): { inicio: string; fim: str
   return { inicio, fim, label: `${MESES[prevMonth - 1]}/${prevYear}` };
 }
 
-const PERIODOS: { id: Periodo; label: string }[] = [
+export const PERIODOS: { id: Periodo; label: string }[] = [
   { id: "semana_atual", label: "Semana atual" },
   { id: "ultimos_30", label: "Últimos 30 dias" },
   { id: "mes_atual", label: "Mês atual" },

@@ -9,7 +9,7 @@ export default async function AlunosPage() {
 
   const { data: alunos, error } = await supabase
     .from("alunos")
-    .select("id, nome, turma, ativo, saldo, tipo_conta, ciclo_cobranca, dia_cobranca, limite_diario, conta_paga, telefone_responsavel, email_responsavel, nome_responsavel, limite_alerta_saldo")
+    .select("id, nome, turma, ativo, saldo, tipo_conta, ciclo_cobranca, dia_cobranca, limite_diario, conta_paga, telefone_responsavel, email_responsavel, nome_responsavel, limite_alerta_saldo, notificar_consumo")
     .eq("cantina_id", CANTINA_ID)
     .order("ativo", { ascending: false })
     .order("nome");

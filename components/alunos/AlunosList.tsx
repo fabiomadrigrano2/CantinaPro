@@ -22,6 +22,7 @@ type AlunoComConta = {
   email_responsavel: string | null;
   nome_responsavel: string | null;
   limite_alerta_saldo: number | null;
+  notificar_consumo: boolean | null;
 };
 
 type Responsavel = {
@@ -94,7 +95,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
   });
   const [form,          setForm]          = useState({
     nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0",
-    ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", limite_alerta_saldo: "",
+    ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", limite_alerta_saldo: "", notificar_consumo: false,
     telefone_responsavel: "", email_responsavel: "", nome_responsavel: "",
   });
   const [responsaveis,   setResponsaveis]   = useState<Responsavel[]>([]);
@@ -143,7 +144,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
 
   function openModal() {
     setEditingAluno(null);
-    setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", limite_alerta_saldo: "", telefone_responsavel: "", email_responsavel: "", nome_responsavel: "" });
+    setForm({ nome: "", turma: "", tipo_conta: "credito", saldo_inicial: "0", ciclo_cobranca: "mensal", dia_cobranca: "5", limite_diario: "0", limite_alerta_saldo: "", notificar_consumo: false, telefone_responsavel: "", email_responsavel: "", nome_responsavel: "" });
     setResponsaveis([]);
     setRespForm({ nome: "", email: "", parentesco: "responsavel" });
     setRespError(null);
@@ -162,6 +163,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
       dia_cobranca:         String(aluno.dia_cobranca ?? 5),
       limite_diario:        String(aluno.limite_diario ?? 0),
       limite_alerta_saldo:  aluno.limite_alerta_saldo != null ? String(aluno.limite_alerta_saldo) : "",
+      notificar_consumo:    aluno.notificar_consumo ?? false,
       telefone_responsavel: aluno.telefone_responsavel ?? "",
       email_responsavel:    aluno.email_responsavel    ?? "",
       nome_responsavel:     aluno.nome_responsavel     ?? "",
@@ -344,6 +346,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           dia_cobranca:         form.ciclo_cobranca === "mensal" ? clampDiaCobranca(form.dia_cobranca) : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
           limite_alerta_saldo:  parseLimiteAlerta(form.limite_alerta_saldo),
+          notificar_consumo:    form.notificar_consumo,
           tipo_conta:           form.tipo_conta,
           saldo:                novoSaldo,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
@@ -369,6 +372,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           dia_cobranca:         form.ciclo_cobranca === "mensal" ? clampDiaCobranca(form.dia_cobranca) : null,
           limite_diario:        parseInt(form.limite_diario) || 0,
           limite_alerta_saldo:  parseLimiteAlerta(form.limite_alerta_saldo),
+          notificar_consumo:    form.notificar_consumo,
           tipo_conta:           form.tipo_conta,
           saldo:                parseFloat(form.saldo_inicial) || 0,
           telefone_responsavel: form.telefone_responsavel.trim() || null,
@@ -853,6 +857,31 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   placeholder="Ex: (11) 99999-9999"
                 />
               </div>
+
+              {/* Notificação de consumo (opt-in) */}
+              <label className="flex items-start justify-between gap-4 px-4 py-3 rounded-lg bg-cp-elevated border border-cp-border cursor-pointer">
+                <div>
+                  <p className="text-sm font-medium text-gray-300">
+                    Notificar responsável a cada compra via WhatsApp
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {form.telefone_responsavel.replace(/\D/g, "")
+                      ? "Após cada venda, a mensagem com o consumo fica pronta para enviar."
+                      : "Cadastre o telefone do responsável acima para usar."}
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={form.notificar_consumo}
+                  onChange={(e) => setForm((f) => ({ ...f, notificar_consumo: e.target.checked }))}
+                  className="sr-only peer"
+                />
+                <span
+                  aria-hidden
+                  className="relative shrink-0 mt-0.5 w-10 h-6 rounded-full bg-gray-600 transition-colors peer-checked:bg-emerald-500 peer-focus-visible:ring-2 peer-focus-visible:ring-orange-500 after:absolute after:top-0.5 after:left-0.5 after:w-5 after:h-5 after:rounded-full after:bg-white after:shadow after:transition-transform peer-checked:after:translate-x-4"
+                />
+              </label>
 
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">

@@ -6,7 +6,7 @@ import { salvarHistoricoPagamento } from "@/lib/pagamentos";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
-export type ItemExtrato = { nome_produto: string; quantidade: number };
+export type ItemExtrato = { nome_produto: string; quantidade: number; preco_unitario: number | null };
 export type PedidoExtrato = { criado_em: string; total: number; itens: ItemExtrato[] };
 
 // Busca pedidos confirmados dos últimos 65 dias — intervalo fixo que cobre
@@ -23,7 +23,7 @@ export async function buscarExtratoAluno(
 
   const { data, error } = await (supabase as any)
     .from("pedidos")
-    .select("criado_em, total, itens_pedido ( nome_produto, quantidade )")
+    .select("criado_em, total, itens_pedido ( nome_produto, quantidade, preco_unitario )")
     .eq("cantina_id", CANTINA_ID)
     .eq("aluno_id", alunoId)
     .eq("status", "confirmado")
@@ -38,6 +38,7 @@ export async function buscarExtratoAluno(
     itens: (p.itens_pedido ?? []).map((i: any) => ({
       nome_produto: i.nome_produto,
       quantidade: i.quantidade,
+      preco_unitario: i.preco_unitario ?? null,
     })),
   }));
 
