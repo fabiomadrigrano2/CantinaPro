@@ -265,16 +265,16 @@ export default function PortalDashboard({
 
       {/* ── Header ── */}
       <header className="bg-cp-surface border-b border-cp-border px-4 py-3 sticky top-0 z-10">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-sm shrink-0">
+        <div className="max-w-2xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center text-lg shrink-0">
               👨‍👩‍👧
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white leading-tight truncate">
+              <p className="text-base sm:text-lg font-semibold text-white leading-tight truncate">
                 {responsavelNome ? `Olá, ${responsavelNome}!` : "Olá!"}
               </p>
-              <p className="text-[11px] text-gray-500 leading-tight mt-0.5 truncate">
+              <p className="text-sm text-gray-400 leading-tight mt-0.5 truncate">
                 Acompanhando: <span className="text-gray-300">{aluno.nome}</span>
               </p>
             </div>
@@ -282,7 +282,7 @@ export default function PortalDashboard({
           <button
             onClick={handleLogout}
             disabled={loggingOut}
-            className="text-xs text-gray-500 hover:text-gray-300 transition disabled:opacity-50 px-3 py-1.5 rounded-lg hover:bg-cp-elevated"
+            className="text-sm text-gray-400 hover:text-gray-200 transition disabled:opacity-50 px-3 py-1.5 rounded-lg hover:bg-cp-elevated shrink-0"
           >
             {loggingOut ? "Saindo..." : "Sair"}
           </button>
