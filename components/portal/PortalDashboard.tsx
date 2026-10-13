@@ -221,13 +221,14 @@ function ConfiguracoesSaldo({ limiteDiarioInicial }: { limiteDiarioInicial: numb
 }
 
 export default function PortalDashboard({
-  aluno, pedidos, totalMes, weeklyData, hoje,
+  aluno, pedidos, totalMes, weeklyData, hoje, responsavelNome,
 }: {
-  aluno:      AlunoPortal;
-  pedidos:    PedidoPortal[];
-  totalMes:   number;
-  weeklyData: WeeklyPoint[];
-  hoje:       string;
+  aluno:           AlunoPortal;
+  pedidos:         PedidoPortal[];
+  totalMes:        number;
+  weeklyData:      WeeklyPoint[];
+  hoje:            string;
+  responsavelNome: string | null;
 }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const [periodo,    setPeriodo]    = useState<Periodo>("ultimos_30");
@@ -269,9 +270,13 @@ export default function PortalDashboard({
             <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-sm shrink-0">
               👨‍👩‍👧
             </div>
-            <div>
-              <p className="text-[11px] text-gray-500 leading-none">Portal do Responsável</p>
-              <p className="text-sm font-semibold text-white leading-tight">{aluno.nome}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white leading-tight truncate">
+                {responsavelNome ? `Olá, ${responsavelNome}!` : "Olá!"}
+              </p>
+              <p className="text-[11px] text-gray-500 leading-tight mt-0.5 truncate">
+                Acompanhando: <span className="text-gray-300">{aluno.nome}</span>
+              </p>
             </div>
           </div>
           <button

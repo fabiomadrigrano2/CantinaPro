@@ -73,7 +73,7 @@ export default async function PortalDashboardPage() {
   // Find responsavel by email (admin bypasses RLS)
   const { data: responsavel, error: respError } = await admin
     .from("responsaveis")
-    .select("id, email, cantina_id")
+    .select("id, nome, email, cantina_id")
     .ilike("email", user.email!)
     .eq("cantina_id", CANTINA_ID)
     .limit(1)
@@ -178,6 +178,7 @@ export default async function PortalDashboardPage() {
       totalMes={totalMes}
       weeklyData={weeklyData}
       hoje={hoje}
+      responsavelNome={responsavel.nome?.trim() || null}
     />
   );
 }
