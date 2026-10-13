@@ -53,7 +53,6 @@ export default function RelatoriosView({ data }: { data: RelatorioData }) {
     periodo, periodoLabel,
     totalArrecadado, totalPedidos, ticketMedio,
     vendasPorDia, top5Alunos, topProdutos,
-    criticos, esgotados,
   } = data;
 
   return (
@@ -144,13 +143,13 @@ export default function RelatoriosView({ data }: { data: RelatorioData }) {
       </section>
 
       {/* ══════════════════════════════════════════════════════════ */}
-      {/* ESTOQUE / PRODUTOS                                        */}
+      {/* PRODUTOS                                                  */}
       {/* ══════════════════════════════════════════════════════════ */}
       <section>
-        <SectionTitle>Estoque &amp; Produtos</SectionTitle>
+        <SectionTitle>Produtos</SectionTitle>
 
         {/* Produtos mais vendidos */}
-        <div className="bg-cp-surface border border-cp-border rounded-2xl overflow-hidden mb-6">
+        <div className="bg-cp-surface border border-cp-border rounded-2xl overflow-hidden">
           <div className="px-5 py-4 border-b border-cp-border">
             <p className="text-sm font-semibold text-white">Produtos mais vendidos</p>
           </div>
@@ -200,73 +199,6 @@ export default function RelatoriosView({ data }: { data: RelatorioData }) {
               </div>
             </>
           )}
-        </div>
-
-        {/* Alertas de estoque em duas colunas */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-          {/* Estoque crítico */}
-          <div className="bg-cp-surface border border-amber-500/20 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-4 border-b border-amber-500/20 bg-amber-500/5">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-amber-400 shrink-0">
-                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
-              </svg>
-              <p className="text-sm font-semibold text-amber-400">
-                Estoque crítico
-                <span className="ml-2 text-xs font-normal text-amber-600">({criticos.length})</span>
-              </p>
-            </div>
-            {criticos.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-gray-600">Todos os produtos estão OK.</p>
-            ) : (
-              <div className="divide-y divide-cp-border">
-                {criticos.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 px-5 py-3">
-                    <span className="text-xl shrink-0">{p.emoji ?? "📦"}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{p.nome}</p>
-                    </div>
-                    <span className="text-sm font-bold text-amber-400 tabular-nums shrink-0">
-                      {p.estoque} un.
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Esgotados */}
-          <div className="bg-cp-surface border border-red-500/20 rounded-2xl overflow-hidden">
-            <div className="flex items-center gap-2 px-5 py-4 border-b border-red-500/20 bg-red-500/5">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4 text-red-400 shrink-0">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-              </svg>
-              <p className="text-sm font-semibold text-red-400">
-                Produtos esgotados
-                <span className="ml-2 text-xs font-normal text-red-600">({esgotados.length})</span>
-              </p>
-            </div>
-            {esgotados.length === 0 ? (
-              <p className="px-5 py-8 text-center text-sm text-gray-600">Nenhum produto esgotado.</p>
-            ) : (
-              <div className="divide-y divide-cp-border">
-                {esgotados.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 px-5 py-3">
-                    <span className="text-xl shrink-0 grayscale opacity-50">{p.emoji ?? "📦"}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-400 truncate">{p.nome}</p>
-                    </div>
-                    <span className="text-xs font-semibold text-red-500 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full shrink-0">
-                      Esgotado
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
         </div>
       </section>
 

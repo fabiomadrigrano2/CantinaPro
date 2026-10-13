@@ -9,7 +9,6 @@ const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 export type DiaVenda    = { date: string; total: number };
 export type TopAluno    = { nome: string; turma: string | null; total: number };
 export type TopProduto  = { nome: string; qtd: number; receita: number };
-export type ProdutoStock = { id: string; nome: string; emoji: string | null; estoque: number; estoque_minimo: number; categoria: string | null };
 
 export type RelatorioData = {
   periodo:         "semanal" | "mensal";
@@ -20,8 +19,6 @@ export type RelatorioData = {
   vendasPorDia:    DiaVenda[];
   top5Alunos:      TopAluno[];
   topProdutos:     TopProduto[];
-  criticos:        ProdutoStock[];
-  esgotados:       ProdutoStock[];
 };
 
 // ── helpers de data (UTC-3) ───────────────────────────────────────────────────
@@ -85,23 +82,15 @@ export default async function RelatoriosPage({
   const { start, end, label: periodoLabel } = periodRange(periodo);
   const supabase = createClient();
 
-  const [{ data: pedidos }, { data: produtos }] = await Promise.all([
-    supabase
-      .from("pedidos")
-      .select("id, aluno_id, total, criado_em, alunos(nome, turma), itens_pedido(nome_produto, quantidade, preco_unitario, produtos(nome))")
-      .eq("cantina_id", CANTINA_ID)
-      .eq("status", "confirmado")
-      .gte("criado_em", start)
-      .lt("criado_em", end),
-    supabase
-      .from("produtos")
-      .select("id, nome, emoji, estoque, estoque_minimo, disponivel, categoria")
-      .eq("cantina_id", CANTINA_ID)
-      .order("estoque"),
-  ]);
+  const { data: pedidos } = await supabase
+    .from("pedidos")
+    .select("id, aluno_id, total, criado_em, alunos(nome, turma), itens_pedido(nome_produto, quantidade, preco_unitario, produtos(nome))")
+    .eq("cantina_id", CANTINA_ID)
+    .eq("status", "confirmado")
+    .gte("criado_em", start)
+    .lt("criado_em", end);
 
-  const pedidosList  = (pedidos  as any[]) ?? [];
-  const produtosList = (produtos as any[]) ?? [];
+  const pedidosList = (pedidos as any[]) ?? [];
 
   // ── métricas financeiras ───────────────────────────────────────────────────
   const totalArrecadado = pedidosList.reduce((s: number, p: any) => s + (p.total ?? 0), 0);
@@ -138,21 +127,17 @@ export default async function RelatoriosPage({
     .sort((a, b) => b.qtd - a.qtd)
     .slice(0, 10);
 
-  // ── estoque ───────────────────────────────────────────────────────────────
-  const criticos: ProdutoStock[]  = produtosList.filter((p: any) => p.estoque > 0  && p.estoque <= (p.estoque_minimo ?? 5));
-  const esgotados: ProdutoStock[] = produtosList.filter((p: any) => p.estoque === 0);
-
   const data: RelatorioData = {
     periodo, periodoLabel,
     totalArrecadado, totalPedidos, ticketMedio,
-    vendasPorDia, top5Alunos, topProdutos, criticos, esgotados,
+    vendasPorDia, top5Alunos, topProdutos,
   };
 
   return (
     <AppLayout>
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Relatórios</h1>
-        <p className="text-sm text-gray-500 mt-1">Visão geral financeira e de estoque</p>
+        <p className="text-sm text-gray-500 mt-1">Visão geral financeira e de vendas</p>
       </div>
       <RelatoriosView data={data} />
     </AppLayout>

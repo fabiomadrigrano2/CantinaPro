@@ -18,7 +18,7 @@ export default async function ProdutosPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-white">Produtos</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Gerencie o cardápio e os estoques da cantina
+          Gerencie os produtos e o cardápio da cantina
         </p>
       </div>
       <ProdutosList initialProdutos={(produtos as any) ?? []} />

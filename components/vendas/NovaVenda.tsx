@@ -24,7 +24,6 @@ type Produto = {
   emoji: string;
   nome: string;
   preco: number;
-  estoque: number;
   categoria: string | null;
   foto_url: string | null;
 };
@@ -116,7 +115,7 @@ export default function NovaVenda() {
           .order("nome"),
         supabase
           .from("produtos")
-          .select("id, emoji, nome, preco, estoque, categoria, foto_url")
+          .select("id, emoji, nome, preco, categoria, foto_url")
           .eq("cantina_id", CANTINA_ID)
           .eq("disponivel", true)
           .order("nome"),
@@ -440,33 +439,8 @@ export default function NovaVenda() {
       return;
     }
 
-    // Baixa estoque de cada produto vendido (best-effort, sem transação —
-    // mesma limitação do resto desta função, que também não faz rollback
-    // se um passo posterior falhar).
-    // Apenas salgados descontam estoque na venda; as demais categorias
-    // (geladeira, doces, bebidas, etc.) não controlam estoque por venda.
-    const estoqueAtualizado: Record<string, number> = {};
-    for (const { product, qty } of cartItems) {
-      if (product.categoria !== "salgados") continue;
-
-      const { data: produtoAtual } = await supabase
-        .from("produtos")
-        .select("estoque")
-        .eq("id", product.id)
-        .single();
-
-      const novoEstoqueProduto = Math.max(0, ((produtoAtual as any)?.estoque ?? 0) - qty);
-      estoqueAtualizado[product.id] = novoEstoqueProduto;
-
-      await (supabase as any)
-        .from("produtos")
-        .update({ estoque: novoEstoqueProduto })
-        .eq("id", product.id);
-    }
-
-    setProdutos((prev) =>
-      prev.map((p) => (p.id in estoqueAtualizado ? { ...p, estoque: estoqueAtualizado[p.id] } : p))
-    );
+    // Estoque é só informativo (controle manual na tela de Produtos):
+    // a venda não desconta nem consulta estoque.
 
     const novoSaldo = selectedAluno.saldo - total;
     const alunoUpdate: Record<string, unknown> = { saldo: novoSaldo };
@@ -1006,28 +980,23 @@ export default function NovaVenda() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-4 pb-44">
             {produtosFiltrados.map((p) => {
               const qty = cart[p.id] ?? 0;
-              const outOfStock = p.estoque === 0;
-              const lowStock = p.estoque > 0 && p.estoque < 5;
               const emCardapio = cardapioIds.has(p.id);
 
               return (
                 <div
                   key={p.id}
                   className={`rounded-2xl border flex flex-col transition-all overflow-hidden ${
-                    outOfStock
-                      ? "border-cp-border bg-cp-surface opacity-40"
-                      : qty > 0
+                    qty > 0
                       ? "border-orange-500/40 bg-orange-500/5 shadow-lg shadow-orange-500/5"
                       : "border-cp-border bg-cp-surface hover:border-cp-muted"
                   }`}
                 >
                   {/* Área de toque principal → +1 */}
                   <button
-                    onClick={() => !outOfStock && addProduct(p.id)}
-                    disabled={outOfStock}
-                    className="relative flex-1 flex flex-col text-left active:scale-95 transition-transform disabled:cursor-not-allowed"
+                    onClick={() => addProduct(p.id)}
+                    className="relative flex-1 flex flex-col text-left active:scale-95 transition-transform"
                   >
-                    {emCardapio && !outOfStock && (
+                    {emCardapio && (
                       <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/90 text-white shadow">
                         Hoje
                       </span>
@@ -1050,15 +1019,6 @@ export default function NovaVenda() {
                       <p className="text-orange-400 font-bold text-base mt-1.5">
                         {fmt(p.preco)}
                       </p>
-                      {outOfStock ? (
-                        <span className="mt-1.5 inline-block text-[11px] bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded-full">
-                          Esgotado
-                        </span>
-                      ) : lowStock ? (
-                        <span className="mt-1.5 inline-block text-[11px] bg-amber-400/10 text-amber-400 border border-amber-400/20 px-2 py-0.5 rounded-full">
-                          Últimas {p.estoque}
-                        </span>
-                      ) : null}
                     </div>
                   </button>
 
@@ -1084,9 +1044,8 @@ export default function NovaVenda() {
                       </div>
                     ) : (
                       <button
-                        onClick={() => !outOfStock && addProduct(p.id)}
-                        disabled={outOfStock}
-                        className="w-full h-10 rounded-xl bg-cp-elevated hover:bg-cp-muted active:bg-orange-500/10 text-gray-500 hover:text-orange-400 transition font-bold text-2xl disabled:opacity-40 disabled:cursor-not-allowed"
+                        onClick={() => addProduct(p.id)}
+                        className="w-full h-10 rounded-xl bg-cp-elevated hover:bg-cp-muted active:bg-orange-500/10 text-gray-500 hover:text-orange-400 transition font-bold text-2xl"
                       >
                         +
                       </button>

@@ -41,10 +41,9 @@ const CATEGORIA_LABEL: Record<string, string> = Object.fromEntries(
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-function stockInfo(estoque: number, minimo: number) {
-  if (estoque === 0)     return { label: "Esgotado",             cls: "bg-red-500/10    text-red-400    border-red-500/20"    };
-  if (estoque <= minimo) return { label: `Crítico (${estoque})`, cls: "bg-amber-400/10  text-amber-400  border-amber-400/20" };
-  return                        { label: `${estoque} un.`,       cls: "bg-emerald-400/10 text-emerald-400 border-emerald-400/20" };
+// Estoque é só informativo: sem alertas de "Esgotado"/"Crítico" e sem bloquear venda
+function stockInfo(estoque: number) {
+  return { label: `${estoque} un.`, cls: "bg-gray-400/10 text-gray-400 border-gray-400/20" };
 }
 
 const inputCls =
@@ -397,13 +396,13 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {filtered.map((p) => {
-            const stock    = stockInfo(p.estoque, p.estoque_minimo);
+            const stock    = stockInfo(p.estoque);
             const catLabel = CATEGORIA_LABEL[p.categoria ?? "outros"] ?? "Outros";
             return (
               <div
                 key={p.id}
                 className={`relative bg-cp-surface border border-cp-border rounded-xl overflow-hidden flex flex-col hover:border-cp-muted transition group ${
-                  (!p.disponivel || p.estoque === 0) ? "opacity-50" : ""
+                  !p.disponivel ? "opacity-50" : ""
                 }`}
               >
                 {/* botões editar e excluir */}
@@ -612,31 +611,21 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                 />
               </div>
 
-              {/* Estoque */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                    Estoque <span className="text-red-400">*</span>
-                  </label>
-                  <input
-                    type="number" required min="0" step="1"
-                    value={form.estoque}
-                    onChange={(e) => set("estoque", e.target.value)}
-                    className={inputCls}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-1.5">
-                    Estoque mínimo
-                  </label>
-                  <input
-                    type="number" min="0" step="1"
-                    value={form.estoque_minimo}
-                    onChange={(e) => set("estoque_minimo", e.target.value)}
-                    className={inputCls}
-                  />
-                </div>
+              {/* Estoque — apenas informativo, não interfere nas vendas */}
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">
+                  Estoque <span className="text-gray-600 font-normal">(opcional)</span>
+                </label>
+                <input
+                  type="number" min="0" step="1"
+                  value={form.estoque}
+                  onChange={(e) => set("estoque", e.target.value)}
+                  className={inputCls}
+                  placeholder="0"
+                />
+                <p className="text-xs text-gray-600 mt-1.5">
+                  Só para seu controle manual — não é descontado nas vendas e não bloqueia nada.
+                </p>
               </div>
 
               {formError && (
@@ -773,13 +762,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
 
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Estoque atual</label>
-                  <p className={`text-sm font-semibold ${
-                    reposModal.estoque === 0
-                      ? "text-red-400"
-                      : reposModal.estoque <= reposModal.estoque_minimo
-                      ? "text-amber-400"
-                      : "text-emerald-400"
-                  }`}>
+                  <p className="text-sm font-semibold text-gray-300">
                     {reposModal.estoque} unidade{reposModal.estoque !== 1 ? "s" : ""}
                   </p>
                 </div>
