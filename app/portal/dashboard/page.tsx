@@ -148,15 +148,17 @@ export default async function PortalDashboardPage() {
   };
 
   const today    = todayBR();
-  const start30  = new Date(Date.UTC(today.year, today.month - 1, today.day - 29, 3, 0, 0));
-  const endToday = new Date(Date.UTC(today.year, today.month - 1, today.day + 1, 3, 0, 0));
+  // início do mês anterior cobre todos os filtros do histórico (semana, mês atual/anterior, 30 dias)
+  const startPrevMonth = new Date(Date.UTC(today.year, today.month - 2, 1, 3, 0, 0));
+  const endToday       = new Date(Date.UTC(today.year, today.month - 1, today.day + 1, 3, 0, 0));
+  const hoje = `${today.year}-${String(today.month).padStart(2, "0")}-${String(today.day).padStart(2, "0")}`;
 
   const { data: pedidos } = await admin
     .from("pedidos")
     .select("id, total, criado_em, itens_pedido(nome_produto, quantidade, preco_unitario, produtos(nome))")
     .eq("aluno_id", alunoId)
     .eq("status", "confirmado")
-    .gte("criado_em", start30.toISOString())
+    .gte("criado_em", startPrevMonth.toISOString())
     .lt("criado_em", endToday.toISOString())
     .order("criado_em", { ascending: false });
 
@@ -175,6 +177,7 @@ export default async function PortalDashboardPage() {
       pedidos={pedidosList}
       totalMes={totalMes}
       weeklyData={weeklyData}
+      hoje={hoje}
     />
   );
 }

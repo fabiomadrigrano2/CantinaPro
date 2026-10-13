@@ -25,6 +25,65 @@ function fmtTime(iso: string) {
   }).format(new Date(iso));
 }
 
+// ── períodos do histórico (datas YYYY-MM-DD no fuso de São Paulo) ──────────────
+
+type Periodo = "semana_atual" | "mes_atual" | "mes_anterior" | "ultimos_30";
+
+const MESES = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const HISTORICO_LIMITE = 5;
+
+function parseYMD(s: string): Date {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+
+function toYMD(d: Date): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+}
+
+function addDays(s: string, n: number): string {
+  const d = parseYMD(s);
+  d.setUTCDate(d.getUTCDate() + n);
+  return toYMD(d);
+}
+
+function diaMes(s: string): string {
+  const [, m, d] = s.split("-");
+  return `${d}/${m}`;
+}
+
+const ymdBR = new Intl.DateTimeFormat("en-CA", {
+  year: "numeric", month: "2-digit", day: "2-digit", timeZone: "America/Sao_Paulo",
+});
+
+function getPeriodo(tipo: Periodo, hoje: string): { inicio: string; fim: string; descricao: string } {
+  const [y, m] = hoje.split("-").map(Number);
+
+  if (tipo === "semana_atual") {
+    const dow    = parseYMD(hoje).getUTCDay();
+    const inicio = addDays(hoje, dow === 0 ? -6 : 1 - dow);
+    return { inicio, fim: hoje, descricao: `${diaMes(inicio)} a ${diaMes(hoje)}` };
+  }
+  if (tipo === "mes_atual") {
+    return { inicio: `${y}-${String(m).padStart(2, "0")}-01`, fim: hoje, descricao: `${MESES[m - 1]}/${y}` };
+  }
+  if (tipo === "mes_anterior") {
+    const pm = m === 1 ? 12 : m - 1;
+    const py = m === 1 ? y - 1 : y;
+    return {
+      inicio:    `${py}-${String(pm).padStart(2, "0")}-01`,
+      fim:       toYMD(new Date(Date.UTC(py, pm, 0))),
+      descricao: `${MESES[pm - 1]}/${py}`,
+    };
+  }
+  const inicio = addDays(hoje, -29);
+  return { inicio, fim: hoje, descricao: `${diaMes(inicio)} a ${diaMes(hoje)}` };
+}
+
 function AlertaSaldoBaixo({ nome, saldo }: { nome: string; saldo: number }) {
   if (saldo >= 10) return null;
   return (
@@ -162,14 +221,38 @@ function ConfiguracoesSaldo({ limiteDiarioInicial }: { limiteDiarioInicial: numb
 }
 
 export default function PortalDashboard({
-  aluno, pedidos, totalMes, weeklyData,
+  aluno, pedidos, totalMes, weeklyData, hoje,
 }: {
   aluno:      AlunoPortal;
   pedidos:    PedidoPortal[];
   totalMes:   number;
   weeklyData: WeeklyPoint[];
+  hoje:       string;
 }) {
   const [loggingOut, setLoggingOut] = useState(false);
+  const [periodo,    setPeriodo]    = useState<Periodo>("ultimos_30");
+  const [expandido,  setExpandido]  = useState(false);
+
+  const filtro = getPeriodo(periodo, hoje);
+  const pedidosFiltrados = pedidos.filter((p) => {
+    const d = ymdBR.format(new Date(p.criado_em));
+    return d >= filtro.inicio && d <= filtro.fim;
+  });
+  const totalPeriodo     = pedidosFiltrados.reduce((s, p) => s + (p.total ?? 0), 0);
+  const pedidosVisiveis  = expandido ? pedidosFiltrados : pedidosFiltrados.slice(0, HISTORICO_LIMITE);
+
+  const [hy, hm] = hoje.split("-").map(Number);
+  const opcoesPeriodo: { id: Periodo; label: string }[] = [
+    { id: "semana_atual", label: "Semana atual" },
+    { id: "mes_atual",    label: `${MESES[hm - 1]}/${hy}` },
+    { id: "mes_anterior", label: hm === 1 ? `${MESES[11]}/${hy - 1}` : `${MESES[hm - 2]}/${hy}` },
+    { id: "ultimos_30",   label: "Últimos 30 dias" },
+  ];
+
+  function selecionarPeriodo(id: Periodo) {
+    setPeriodo(id);
+    setExpandido(false);
+  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -239,20 +322,63 @@ export default function PortalDashboard({
 
         {/* Histórico detalhado */}
         <div>
-          <div className="mb-3">
-            <p className="text-sm font-semibold text-white">Histórico de consumo</p>
-            <p className="text-xs text-gray-500 mt-0.5">últimos 30 dias</p>
+          <div className="mb-3 space-y-3">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-white">Histórico de consumo</p>
+                <p className="text-xs text-gray-500 mt-0.5">{filtro.descricao}</p>
+              </div>
+              {pedidosFiltrados.length > 0 && (
+                <p className="text-xs text-gray-500 text-right shrink-0">
+                  {pedidosFiltrados.length} {pedidosFiltrados.length === 1 ? "consumo" : "consumos"} ·{" "}
+                  <span className="text-gray-300 font-semibold tabular-nums">{fmt(totalPeriodo)}</span>
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {opcoesPeriodo.map((op) => {
+                const ativo = periodo === op.id;
+                return (
+                  <button
+                    key={op.id}
+                    type="button"
+                    onClick={() => selecionarPeriodo(op.id)}
+                    aria-pressed={ativo}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-cp-bg ${
+                      ativo
+                        ? "bg-blue-500 border-blue-500 text-white"
+                        : "bg-cp-surface border-cp-border text-gray-400 hover:text-gray-200 hover:bg-cp-elevated"
+                    }`}
+                  >
+                    {op.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {pedidos.length === 0 ? (
+          {pedidosFiltrados.length === 0 ? (
             <div className="bg-cp-surface border border-cp-border rounded-2xl px-5 py-10 text-center text-sm text-gray-600">
               Nenhum consumo no período.
             </div>
           ) : (
             <div className="space-y-3">
-              {pedidos.map((p) => (
+              {pedidosVisiveis.map((p) => (
                 <PedidoCard key={p.id} pedido={p} />
               ))}
+
+              {pedidosFiltrados.length > HISTORICO_LIMITE && (
+                <button
+                  type="button"
+                  onClick={() => setExpandido((v) => !v)}
+                  className="w-full py-2.5 px-4 bg-cp-surface hover:bg-cp-elevated border border-cp-border text-sm font-medium text-gray-300 hover:text-white rounded-xl transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-cp-bg"
+                >
+                  {expandido
+                    ? "Ver menos"
+                    : `Ver mais (${pedidosFiltrados.length - HISTORICO_LIMITE})`}
+                </button>
+              )}
             </div>
           )}
         </div>
