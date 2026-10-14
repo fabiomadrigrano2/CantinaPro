@@ -8,7 +8,7 @@ import ExtratoPdfModal from "@/components/cobrancas/ExtratoPdfModal";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
-type Devedor = {
+export type Devedor = {
   id: string;
   nome: string;
   turma: string | null;
@@ -51,7 +51,7 @@ function toDateStrClient(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
+export function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
   const nomeResp  = devedor.nome_responsavel ?? devedor.nome.split(" ")[0];
   const nomeAluno = devedor.nome;
 
@@ -120,7 +120,7 @@ export const WHATSAPP_ICON = (
 
 // ── modal de prévia da mensagem ───────────────────────────────────────────────
 
-function ExtratoModal({
+export function ExtratoModal({
   devedor,
   initialMessage,
   onClose,

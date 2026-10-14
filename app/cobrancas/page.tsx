@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import CobrancasList from "@/components/cobrancas/CobrancasList";
+import ResumaoSemana from "@/components/cobrancas/ResumaoSemana";
 import type { CicloSemana } from "@/types/cobrancas";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
@@ -159,11 +160,17 @@ export default async function CobrancasPage({
 
   return (
     <AppLayout>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Cobranças</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Alunos com pendências financeiras na cantina
-        </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Cobranças</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Alunos com pendências financeiras na cantina
+          </p>
+        </div>
+        <ResumaoSemana
+          devedores={(devedores as any) ?? []}
+          ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
+        />
       </div>
       <CobrancasList
         initialDevedores={(devedores as any) ?? []}
