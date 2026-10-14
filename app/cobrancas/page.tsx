@@ -6,17 +6,57 @@ import type { CicloSemana } from "@/types/cobrancas";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
-function getWeekStart(date: Date): Date {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Dom, 1=Seg, ..., 6=Sab
-  const diff = day === 0 ? -6 : 1 - day; // deslocar para segunda
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+// Semanas em horário de Brasília (UTC-3 fixo, mesma premissa do Extrato).
+// O servidor da Vercel roda em UTC, então getDay()/setHours() locais cortavam
+// a semana às 21h de domingo (BRT) em vez da meia-noite.
+function toBRDateStr(date: Date): string {
+  return new Date(date.getTime() - 3 * 60 * 60 * 1000).toISOString().split("T")[0];
 }
 
-function toDateStr(d: Date): string {
-  return d.toISOString().split("T")[0];
+function addDias(ymd: string, dias: number): string {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + dias)).toISOString().split("T")[0];
+}
+
+// Segunda-feira (YYYY-MM-DD) da semana BR que contém a data
+function getWeekStartBR(date: Date): string {
+  const ymd = toBRDateStr(date);
+  const [y, m, d] = ymd.split("-").map(Number);
+  const day = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0=Dom, 1=Seg, ..., 6=Sab
+  return addDias(ymd, day === 0 ? -6 : 1 - day);
+}
+
+// Soma de todos os pedidos confirmados da cantina desde um instante (qualquer
+// aluno ou venda avulsa) — mesmo critério das "Vendas hoje" do Dashboard.
+// Paginado pelo mesmo limite de 1000 linhas do PostgREST.
+async function somarPedidosDesde(
+  supabase: ReturnType<typeof createClient>,
+  cantinaId: string,
+  desdeISO: string
+): Promise<number> {
+  const PAGE_SIZE = 1000;
+  let soma = 0;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("pedidos")
+      .select("total")
+      .eq("cantina_id", cantinaId)
+      .eq("status", "confirmado")
+      .gte("criado_em", desdeISO)
+      .order("criado_em", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+
+    soma += (data as any[]).reduce((s, p) => s + (p.total ?? 0), 0);
+    if (data.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+
+  return Math.round(soma * 100) / 100;
 }
 
 type PedidoResumo = { aluno_id: string; total: number; criado_em: string };
@@ -91,6 +131,10 @@ export default async function CobrancasPage({
 
   const alunoIds = (devedores ?? []).map((a: any) => a.id as string);
 
+  const semanaAtualStr = getWeekStartBR(new Date());
+  // Segunda 00:00 em Brasília = 03:00 UTC
+  const consumoSemanaPromise = somarPedidosDesde(supabase, CANTINA_ID, `${semanaAtualStr}T03:00:00.000Z`);
+
   let ciclosSemanaisPorAluno: Record<string, CicloSemana[]> = {};
 
   if (alunoIds.length > 0) {
@@ -114,11 +158,8 @@ export default async function CobrancasPage({
 
     for (const p of pedidos ?? []) {
       const aid = (p as any).aluno_id as string;
-      const inicioDate = getWeekStart(new Date((p as any).criado_em));
-      const fimDate = new Date(inicioDate);
-      fimDate.setDate(inicioDate.getDate() + 6);
-      const inicioStr = toDateStr(inicioDate);
-      const fimStr = toDateStr(fimDate);
+      const inicioStr = getWeekStartBR(new Date((p as any).criado_em));
+      const fimStr = addDias(inicioStr, 6);
 
       if (!semanasPorAluno[aid]) semanasPorAluno[aid] = {};
       if (!semanasPorAluno[aid][inicioStr]) {
@@ -135,7 +176,6 @@ export default async function CobrancasPage({
       cicloMapPorAluno[aid].set((c as any).semana_inicio, c);
     }
 
-    const semanaAtualStr = toDateStr(getWeekStart(new Date()));
 
     for (const alunoId of alunoIds) {
       const semanas = semanasPorAluno[alunoId] ?? {};
@@ -158,6 +198,8 @@ export default async function CobrancasPage({
     }
   }
 
+  const consumoSemana = await consumoSemanaPromise;
+
   return (
     <AppLayout>
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -170,6 +212,7 @@ export default async function CobrancasPage({
         <ResumaoSemana
           devedores={(devedores as any) ?? []}
           ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
+          consumoSemana={consumoSemana}
         />
       </div>
       <CobrancasList

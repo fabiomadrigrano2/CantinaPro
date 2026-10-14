@@ -68,9 +68,12 @@ type LinhaMensal = {
 export default function ResumaoSemana({
   devedores,
   ciclosSemanaisPorAluno,
+  consumoSemana,
 }: {
   devedores: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
+  // todos os pedidos confirmados desde segunda 00:00 (BRT), calculado no servidor
+  consumoSemana: number;
 }) {
   const [aberto, setAberto] = useState(false);
 
@@ -88,6 +91,7 @@ export default function ResumaoSemana({
         <ResumaoModal
           devedores={devedores}
           ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
+          consumoSemana={consumoSemana}
           onClose={() => setAberto(false)}
         />
       )}
@@ -98,10 +102,12 @@ export default function ResumaoSemana({
 function ResumaoModal({
   devedores,
   ciclosSemanaisPorAluno,
+  consumoSemana,
   onClose,
 }: {
   devedores: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
+  consumoSemana: number;
   onClose: () => void;
 }) {
   const [preview, setPreview] = useState<{ devedor: Devedor; initialMessage: string } | null>(null);
@@ -158,7 +164,8 @@ function ResumaoModal({
   // (só dívida anterior), que não aparecem na lista; assim semanais + mensais
   // fecha com "Total de débitos", que é o mesmo total da aba Cobranças.
   const devedoresSemanais = devedores.filter((d) => d.ciclo_cobranca === "semanal");
-  const consumidoSemana   = semanais.reduce((s, l) => s + l.valorSemana, 0);
+  // consumo de toda a cantina na semana (semanais, mensais e avulsos), não só da lista
+  const consumidoSemana   = consumoSemana;
   const totalSemanais     = devedoresSemanais.reduce((s, d) => s + Math.abs(d.saldo), 0);
   const totalMensais      = mensais.reduce((s, l) => s + l.total, 0);
   const totalDebitos      = devedores.reduce((s, d) => s + Math.abs(d.saldo), 0);
