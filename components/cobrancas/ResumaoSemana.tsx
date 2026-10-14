@@ -154,8 +154,16 @@ function ResumaoModal({
       );
   }, [devedores, diaHoje, hoje]);
 
-  const totalSemanais = semanais.reduce((s, l) => s + l.total, 0);
-  const totalMensais  = mensais.reduce((s, l) => s + l.total, 0);
+  // Totais do rodapé. "Total semanais" inclui semanais sem consumo nesta semana
+  // (só dívida anterior), que não aparecem na lista; assim semanais + mensais
+  // fecha com "Total de débitos", que é o mesmo total da aba Cobranças.
+  const devedoresSemanais = devedores.filter((d) => d.ciclo_cobranca === "semanal");
+  const consumidoSemana   = semanais.reduce((s, l) => s + l.valorSemana, 0);
+  const totalSemanais     = devedoresSemanais.reduce((s, d) => s + Math.abs(d.saldo), 0);
+  const totalMensais      = mensais.reduce((s, l) => s + l.total, 0);
+  const totalDebitos      = devedores.reduce((s, d) => s + Math.abs(d.saldo), 0);
+  const semanaisForaLista = devedoresSemanais.length - semanais.length;
+  const valorForaLista    = totalSemanais - semanais.reduce((s, l) => s + l.total, 0);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && !preview && onClose();
@@ -184,6 +192,9 @@ function ResumaoModal({
           total: l.total,
           dataCombinada: l.dataCombinada,
         })),
+        semanaisForaLista,
+        valorForaLista,
+        totais: { consumidoSemana, totalSemanais, totalMensais, totalDebitos },
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao gerar o PDF.");
@@ -259,6 +270,13 @@ function ResumaoModal({
                   ))}
                 </ul>
               )}
+              {semanaisForaLista > 0 && (
+                <p className="mt-2 text-xs text-gray-500">
+                  + {semanaisForaLista} aluno{semanaisForaLista !== 1 ? "s" : ""} semana{semanaisForaLista !== 1 ? "is" : "l"} sem
+                  consumo nesta semana, com <span className="text-amber-300/90 tabular-nums">{fmt(valorForaLista)}</span> de
+                  semanas anteriores (incluído em Total semanais).
+                </p>
+              )}
             </section>
 
             {/* Seção 2 — Mensais */}
@@ -298,10 +316,11 @@ function ResumaoModal({
 
           {/* Rodapé */}
           <div className="border-t border-cp-border shrink-0">
-            <div className="grid grid-cols-3 divide-x divide-cp-border">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-cp-border">
+              <Total label="Consumido na semana" valor={consumidoSemana} />
               <Total label="Total semanais" valor={totalSemanais} />
               <Total label="Total mensais" valor={totalMensais} />
-              <Total label="Total a cobrar" valor={totalSemanais + totalMensais} destaque />
+              <Total label="Total de débitos" valor={totalDebitos} destaque />
             </div>
             <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border">
               <p className="text-xs text-red-400 min-w-0 truncate">{error}</p>
@@ -391,7 +410,8 @@ function WhatsAppBtn({ devedor, onClick }: { devedor: Devedor; onClick: () => vo
 
 function Total({ label, valor, destaque }: { label: string; valor: number; destaque?: boolean }) {
   return (
-    <div className={`px-3 sm:px-5 py-3 ${destaque ? "bg-orange-500/10" : ""}`}>
+    // fundo sólido cobre o gap-px da grade; o destaque laranja vai por cima como gradiente
+    <div className={`px-3 sm:px-5 py-3 bg-cp-surface ${destaque ? "bg-gradient-to-r from-orange-500/10 to-orange-500/10" : ""}`}>
       <p className={`text-xs ${destaque ? "text-orange-300" : "text-gray-500"}`}>{label}</p>
       <p className={`text-base font-bold tabular-nums ${destaque ? "text-orange-400" : "text-white"}`}>
         {fmt(valor)}

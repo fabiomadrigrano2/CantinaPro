@@ -33,12 +33,19 @@ export async function baixarResumaoPdf({
   semanaFim,
   semanais,
   mensais,
+  semanaisForaLista,
+  valorForaLista,
+  totais,
 }: {
   hoje: string;          // YYYY-MM-DD
   semanaInicio: string;  // YYYY-MM-DD
   semanaFim: string;     // YYYY-MM-DD
   semanais: LinhaResumaoSemanal[];
   mensais: LinhaResumaoMensal[];
+  // semanais devedores sem consumo nesta semana (fora da tabela, mas no total)
+  semanaisForaLista: number;
+  valorForaLista: number;
+  totais: { consumidoSemana: number; totalSemanais: number; totalMensais: number; totalDebitos: number };
 }): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -158,8 +165,6 @@ export async function baixarResumaoPdf({
 
   cabecalho();
 
-  const totalSemanais = semanais.reduce((s, l) => s + l.total, 0);
-  const totalMensais  = mensais.reduce((s, l) => s + l.total, 0);
   const R = W - M - 3;
 
   secao(
@@ -174,9 +179,21 @@ export async function baixarResumaoPdf({
       turma: l.turma,
       valores: [fmt(l.valorSemana), l.valorAnterior > 0 ? fmt(l.valorAnterior) : "—", fmt(l.total)],
     })),
-    totalSemanais,
+    semanais.reduce((s, l) => s + l.total, 0),
     "Nenhum aluno semanal com consumo nesta semana."
   );
+
+  if (semanaisForaLista > 0) {
+    y -= 6;
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(9);
+    doc.setTextColor(...CINZA);
+    doc.text(
+      `+ ${semanaisForaLista} aluno(s) semanal(is) sem consumo nesta semana, com ${fmt(valorForaLista)} de semanas anteriores (incluído em Total semanais).`,
+      M, y, { maxWidth: W - 2 * M }
+    );
+    y += 12;
+  }
 
   secao(
     "Mensais",
@@ -189,20 +206,25 @@ export async function baixarResumaoPdf({
       turma: l.turma,
       valores: [l.dataCombinada, fmt(l.total)],
     })),
-    totalMensais,
+    totais.totalMensais,
     "Nenhum aluno mensal para cobrar hoje."
   );
 
   // ── totais ──
-  novaPaginaSePreciso(14 + 6 + 6 + 4);
+  novaPaginaSePreciso(14 + 3 * 6 + 4);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(...TEXTO);
-  doc.text("Total semanais", M + 3, y);
-  doc.text(fmt(totalSemanais), R, y, { align: "right" });
-  y += 6;
-  doc.text("Total mensais", M + 3, y);
-  doc.text(fmt(totalMensais), R, y, { align: "right" });
+  const linhasTotais: [string, number][] = [
+    ["Consumido na semana", totais.consumidoSemana],
+    ["Total semanais", totais.totalSemanais],
+    ["Total mensais", totais.totalMensais],
+  ];
+  linhasTotais.forEach(([label, valor], i) => {
+    if (i > 0) y += 6;
+    doc.text(label, M + 3, y);
+    doc.text(fmt(valor), R, y, { align: "right" });
+  });
   y += 4;
 
   doc.setFillColor(...LARANJA);
@@ -210,9 +232,9 @@ export async function baixarResumaoPdf({
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(`TOTAL A COBRAR  ·  ${dataBR(hoje)}`, M + 5, y + 9);
+  doc.text(`TOTAL DE DÉBITOS  ·  ${dataBR(hoje)}`, M + 5, y + 9);
   doc.setFontSize(14);
-  doc.text(fmt(totalSemanais + totalMensais), W - M - 5, y + 9.2, { align: "right" });
+  doc.text(fmt(totais.totalDebitos), W - M - 5, y + 9.2, { align: "right" });
 
   // ── rodapé em todas as páginas ──
   const geradoEm = new Intl.DateTimeFormat("pt-BR", {
