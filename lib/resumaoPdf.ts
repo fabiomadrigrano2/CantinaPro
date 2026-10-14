@@ -210,7 +210,7 @@ export async function baixarResumaoPdf({
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.text(`TOTAL GERAL DO DIA  ·  ${dataBR(hoje)}`, M + 5, y + 9);
+  doc.text(`TOTAL A COBRAR  ·  ${dataBR(hoje)}`, M + 5, y + 9);
   doc.setFontSize(14);
   doc.text(fmt(totalSemanais + totalMensais), W - M - 5, y + 9.2, { align: "right" });
 

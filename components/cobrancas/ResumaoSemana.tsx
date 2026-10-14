@@ -301,7 +301,7 @@ function ResumaoModal({
             <div className="grid grid-cols-3 divide-x divide-cp-border">
               <Total label="Total semanais" valor={totalSemanais} />
               <Total label="Total mensais" valor={totalMensais} />
-              <Total label="Total do dia" valor={totalSemanais + totalMensais} destaque />
+              <Total label="Total a cobrar" valor={totalSemanais + totalMensais} destaque />
             </div>
             <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border">
               <p className="text-xs text-red-400 min-w-0 truncate">{error}</p>
