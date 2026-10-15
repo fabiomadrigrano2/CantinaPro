@@ -55,17 +55,13 @@ export function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): st
   const nomeResp  = devedor.nome_responsavel ?? devedor.nome.split(" ")[0];
   const nomeAluno = devedor.nome;
 
-  const somaCiclos = ciclos
-    .filter((c) => c.status !== "pago")
-    .reduce((s, c) => s + c.total, 0);
-  const saldoDevedor  = Math.abs(devedor.saldo);
-  const saldoAnterior = saldoDevedor > somaCiclos + 0.005 ? saldoDevedor - somaCiclos : 0;
+  const saldoDevedor = Math.abs(devedor.saldo);
 
-  const cicloAtual  = ciclos.find((c) => c.is_current);
-  const valorAtual  = cicloAtual?.total ?? 0;
-  const valorPassado =
-    ciclos.filter((c) => !c.is_current).reduce((s, c) => s + c.total, 0) +
-    saldoAnterior;
+  const cicloAtual = ciclos.find((c) => c.is_current && c.status !== "pago");
+  const valorAtual = cicloAtual?.total ?? 0;
+  // Semanas passadas = saldo devedor real - semana atual, para que o total
+  // sempre feche com o saldo (ciclos pagos e pagamentos parciais já estão no saldo).
+  const valorPassado = Math.max(0, Math.round((saldoDevedor - valorAtual) * 100) / 100);
 
   const pix       = `Minha chave pix é meu celular 11958890917`;
   const fechamento = `\nMuito obrigado ! Ótimo final de semana !`;
@@ -73,12 +69,12 @@ export function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): st
 
   let corpo: string;
 
-  if (valorAtual > 0 && valorPassado === 0) {
+  if (valorAtual > 0 && valorPassado < 0.005) {
     // Apenas semana atual — aluno adimplente
     corpo =
       `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.\n` +
       pix;
-  } else if (valorAtual > 0 && valorPassado > 0) {
+  } else if (valorAtual > 0) {
     // Semana atual + semanas anteriores em aberto
     corpo =
       `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.\n` +
