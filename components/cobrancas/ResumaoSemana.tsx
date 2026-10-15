@@ -67,10 +67,12 @@ type LinhaMensal = {
 
 export default function ResumaoSemana({
   devedores,
+  alunosSemanais,
   ciclosSemanaisPorAluno,
   consumoSemana,
 }: {
   devedores: Devedor[];
+  alunosSemanais: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   // todos os pedidos confirmados desde segunda 00:00 (BRT), calculado no servidor
   consumoSemana: number;
@@ -90,6 +92,7 @@ export default function ResumaoSemana({
       {aberto && (
         <ResumaoModal
           devedores={devedores}
+          alunosSemanais={alunosSemanais}
           ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
           consumoSemana={consumoSemana}
           onClose={() => setAberto(false)}
@@ -101,11 +104,13 @@ export default function ResumaoSemana({
 
 function ResumaoModal({
   devedores,
+  alunosSemanais,
   ciclosSemanaisPorAluno,
   consumoSemana,
   onClose,
 }: {
   devedores: Devedor[];
+  alunosSemanais: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   consumoSemana: number;
   onClose: () => void;
@@ -119,26 +124,28 @@ function ResumaoModal({
   const semanaFim = addDias(semanaInicio, 6);
   const diaHoje = Number(hoje.split("-")[2]);
 
-  // Semanais: devedores que consumiram na semana atual (ciclo atual ainda não cobrado)
+  // Semanais: todos os alunos semanais ativos. Ordem: consumo nesta semana,
+  // depois só dívida anterior, por último quem não deve nada.
   const semanais = useMemo<LinhaSemanal[]>(() => {
-    return devedores
-      .filter((d) => d.ciclo_cobranca === "semanal")
-      .flatMap((d) => {
+    const grupo = (l: LinhaSemanal) => (l.valorSemana > 0 ? 0 : l.total > 0 ? 1 : 2);
+    return alunosSemanais
+      .map((d) => {
         const ciclos = ciclosSemanaisPorAluno[d.id] ?? [];
         const atual = ciclos.find((c) => c.is_current);
-        if (!atual || atual.total <= 0) return [];
-        const total = Math.abs(d.saldo);
-        return [{
+        // ciclos só existem para devedores, então saldo >= 0 cai em semana 0
+        const total = d.saldo < 0 ? Math.abs(d.saldo) : 0;
+        const valorSemana = atual && atual.total > 0 ? atual.total : 0;
+        return {
           devedor: d,
           ciclos,
-          valorSemana: atual.total,
+          valorSemana,
           // tudo que não é desta semana: semanas anteriores + saldo pré-app
-          valorAnterior: Math.max(0, total - atual.total),
+          valorAnterior: Math.max(0, total - valorSemana),
           total,
-        }];
+        };
       })
-      .sort((a, b) => a.devedor.nome.localeCompare(b.devedor.nome));
-  }, [devedores, ciclosSemanaisPorAluno]);
+      .sort((a, b) => grupo(a) - grupo(b) || a.devedor.nome.localeCompare(b.devedor.nome));
+  }, [alunosSemanais, ciclosSemanaisPorAluno]);
 
   // Mensais: todo devedor mensal (saldo negativo); quem tem cobrança hoje vem primeiro.
   // Sem ciclo definido conta como mensal, que é o padrão do cadastro.
@@ -160,17 +167,14 @@ function ResumaoModal({
       );
   }, [devedores, diaHoje, hoje]);
 
-  // Totais do rodapé. "Total semanais" inclui semanais sem consumo nesta semana
-  // (só dívida anterior), que não aparecem na lista; assim semanais + mensais
-  // fecha com "Total de débitos", que é o mesmo total da aba Cobranças.
+  // Totais do rodapé: semanais + mensais fecha com "Total de débitos",
+  // que é o mesmo total da aba Cobranças.
   const devedoresSemanais = devedores.filter((d) => d.ciclo_cobranca === "semanal");
   // consumo de toda a cantina na semana (semanais, mensais e avulsos), não só da lista
   const consumidoSemana   = consumoSemana;
   const totalSemanais     = devedoresSemanais.reduce((s, d) => s + Math.abs(d.saldo), 0);
   const totalMensais      = mensais.reduce((s, l) => s + l.total, 0);
   const totalDebitos      = devedores.reduce((s, d) => s + Math.abs(d.saldo), 0);
-  const semanaisForaLista = devedoresSemanais.length - semanais.length;
-  const valorForaLista    = totalSemanais - semanais.reduce((s, l) => s + l.total, 0);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && !preview && onClose();
@@ -199,8 +203,6 @@ function ResumaoModal({
           total: l.total,
           dataCombinada: l.dataCombinada,
         })),
-        semanaisForaLista,
-        valorForaLista,
         totais: { consumidoSemana, totalSemanais, totalMensais, totalDebitos },
       });
     } catch (e) {
@@ -248,7 +250,7 @@ function ResumaoModal({
             <section>
               <SecaoTitulo titulo="Semanais" qtd={semanais.length} cor="blue" />
               {semanais.length === 0 ? (
-                <Vazio texto="Nenhum aluno semanal com consumo em aberto nesta semana." />
+                <Vazio texto="Nenhum aluno semanal cadastrado." />
               ) : (
                 <ul className="rounded-xl border border-cp-border divide-y divide-cp-border overflow-hidden">
                   {semanais.map((l) => (
@@ -264,25 +266,27 @@ function ResumaoModal({
                           </p>
                         )}
                       </div>
-                      <span className="w-24 text-right text-sm font-bold text-red-400 tabular-nums shrink-0">
+                      <span
+                        className={`w-24 text-right text-sm font-bold tabular-nums shrink-0 ${
+                          l.total > 0 ? "text-red-400" : "text-gray-500"
+                        }`}
+                      >
                         {fmt(l.total)}
                       </span>
-                      <WhatsAppBtn
-                        devedor={l.devedor}
-                        onClick={() =>
-                          setPreview({ devedor: l.devedor, initialMessage: buildMessageSemanal(l.devedor, l.ciclos) })
-                        }
-                      />
+                      {l.total > 0 ? (
+                        <WhatsAppBtn
+                          devedor={l.devedor}
+                          onClick={() =>
+                            setPreview({ devedor: l.devedor, initialMessage: buildMessageSemanal(l.devedor, l.ciclos) })
+                          }
+                        />
+                      ) : (
+                        // nada a cobrar: reserva o espaço do botão para manter as colunas alinhadas
+                        <span className="shrink-0 w-[34px] sm:w-[86px]" aria-hidden="true" />
+                      )}
                     </li>
                   ))}
                 </ul>
-              )}
-              {semanaisForaLista > 0 && (
-                <p className="mt-2 text-xs text-gray-500">
-                  + {semanaisForaLista} aluno{semanaisForaLista !== 1 ? "s" : ""} semana{semanaisForaLista !== 1 ? "is" : "l"} sem
-                  consumo nesta semana, com <span className="text-amber-300/90 tabular-nums">{fmt(valorForaLista)}</span> de
-                  semanas anteriores (incluído em Total semanais).
-                </p>
               )}
             </section>
 

@@ -106,7 +106,7 @@ export default async function CobrancasPage({
 }) {
   const supabase = createClient();
 
-  const [{ data: devedores }, { data: semCredito }] = await Promise.all([
+  const [{ data: devedores }, { data: semCredito }, { data: alunosSemanais }] = await Promise.all([
     // Devedores: fiado (sempre devendo) + crédito com saldo negativo (estouraram
     // o pré-pago). Ambos têm extrato semanal e cobrança via WhatsApp iguais.
     supabase
@@ -126,6 +126,14 @@ export default async function CobrancasPage({
       .eq("tipo_conta", "credito")
       .eq("ativo", true)
       .eq("saldo", 0)
+      .order("nome"),
+    // Todos os semanais ativos, devendo ou não, para o Resumão da Semana
+    supabase
+      .from("alunos")
+      .select("id, nome, turma, saldo, tipo_conta, ciclo_cobranca, dia_cobranca, telefone_responsavel, nome_responsavel")
+      .eq("cantina_id", CANTINA_ID)
+      .eq("ciclo_cobranca", "semanal")
+      .eq("ativo", true)
       .order("nome"),
   ]);
 
@@ -211,6 +219,7 @@ export default async function CobrancasPage({
         </div>
         <ResumaoSemana
           devedores={(devedores as any) ?? []}
+          alunosSemanais={(alunosSemanais as any) ?? []}
           ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
           consumoSemana={consumoSemana}
         />

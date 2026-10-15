@@ -33,8 +33,6 @@ export async function baixarResumaoPdf({
   semanaFim,
   semanais,
   mensais,
-  semanaisForaLista,
-  valorForaLista,
   totais,
 }: {
   hoje: string;          // YYYY-MM-DD
@@ -42,9 +40,6 @@ export async function baixarResumaoPdf({
   semanaFim: string;     // YYYY-MM-DD
   semanais: LinhaResumaoSemanal[];
   mensais: LinhaResumaoMensal[];
-  // semanais devedores sem consumo nesta semana (fora da tabela, mas no total)
-  semanaisForaLista: number;
-  valorForaLista: number;
   totais: { consumidoSemana: number; totalSemanais: number; totalMensais: number; totalDebitos: number };
 }): Promise<void> {
   const { jsPDF } = await import("jspdf");
@@ -180,20 +175,8 @@ export async function baixarResumaoPdf({
       valores: [fmt(l.valorSemana), l.valorAnterior > 0 ? fmt(l.valorAnterior) : "—", fmt(l.total)],
     })),
     semanais.reduce((s, l) => s + l.total, 0),
-    "Nenhum aluno semanal com consumo nesta semana."
+    "Nenhum aluno semanal cadastrado."
   );
-
-  if (semanaisForaLista > 0) {
-    y -= 6;
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(9);
-    doc.setTextColor(...CINZA);
-    doc.text(
-      `+ ${semanaisForaLista} aluno(s) semanal(is) sem consumo nesta semana, com ${fmt(valorForaLista)} de semanas anteriores (incluído em Total semanais).`,
-      M, y, { maxWidth: W - 2 * M }
-    );
-    y += 12;
-  }
 
   secao(
     "Mensais",
