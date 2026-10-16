@@ -457,8 +457,8 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 {/* Nome + saldo */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold text-white truncate">{aluno.nome}</p>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="font-semibold text-white break-words">{aluno.nome}</p>
                       {!aluno.ativo && (
                         <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/20 shrink-0">Inativo</span>
                       )}
@@ -503,7 +503,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   <div className="flex gap-2 pt-1 border-t border-cp-border">
                     <button
                       onClick={() => handleReativar(aluno)}
-                      className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium transition hover:bg-emerald-500/20 active:scale-95"
+                      className="min-h-[44px] flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium transition hover:bg-emerald-500/20 active:scale-95"
                     >
                       Reativar
                     </button>
@@ -512,28 +512,28 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   <div className="flex gap-2 pt-1 border-t border-cp-border">
                     <button
                       onClick={() => openEditModal(aluno)}
-                      className="flex-1 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-400 hover:text-orange-400 hover:border-orange-500/30 text-xs font-medium transition active:scale-95"
+                      className="min-h-[44px] flex-1 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-400 hover:text-orange-400 hover:border-orange-500/30 text-xs font-medium transition active:scale-95"
                     >
                       Editar
                     </button>
                     {aluno.tipo_conta !== "fiado" ? (
                       <button
                         onClick={() => openCreditoModal(aluno)}
-                        className="flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium transition hover:bg-emerald-500/20 active:scale-95"
+                        className="min-h-[44px] flex-1 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium transition hover:bg-emerald-500/20 active:scale-95"
                       >
                         + Crédito
                       </button>
                     ) : aluno.conta_paga !== true ? (
                       <button
                         onClick={() => openFiadoModal(aluno)}
-                        className="flex-1 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium transition hover:bg-orange-500/20 active:scale-95"
+                        className="min-h-[44px] flex-1 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-medium transition hover:bg-orange-500/20 active:scale-95"
                       >
                         Registrar Pgto
                       </button>
                     ) : null}
                     <button
                       onClick={() => { setDeleteError(null); setDeletingAluno(aluno); }}
-                      className="w-10 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-500 hover:text-red-400 hover:border-red-500/30 transition active:scale-95 flex items-center justify-center"
+                      className="min-h-[44px] w-11 py-2 rounded-lg bg-cp-elevated border border-cp-border text-gray-500 hover:text-red-400 hover:border-red-500/30 transition active:scale-95 flex items-center justify-center"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"/>

@@ -256,7 +256,7 @@ function ResumaoModal({
                   {semanais.map((l) => (
                     <li key={l.devedor.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 px-4 py-3 bg-cp-elevated/40">
                       <AlunoInfo devedor={l.devedor} />
-                      <div className="text-right shrink-0">
+                      <div className="flex-1 sm:flex-none text-left sm:text-right min-w-0">
                         <p className="text-xs text-gray-400 tabular-nums">
                           Semana <span className="text-gray-200 font-medium">{fmt(l.valorSemana)}</span>
                         </p>
@@ -267,7 +267,7 @@ function ResumaoModal({
                         )}
                       </div>
                       <span
-                        className={`w-24 text-right text-sm font-bold tabular-nums shrink-0 ${
+                        className={`sm:w-24 text-right text-sm font-bold tabular-nums shrink-0 ${
                           l.total > 0 ? "text-red-400" : "text-gray-500"
                         }`}
                       >
@@ -282,7 +282,7 @@ function ResumaoModal({
                         />
                       ) : (
                         // nada a cobrar: reserva o espaço do botão para manter as colunas alinhadas
-                        <span className="shrink-0 w-[34px] sm:w-[86px]" aria-hidden="true" />
+                        <span className="shrink-0 w-[44px] sm:w-[86px]" aria-hidden="true" />
                       )}
                     </li>
                   ))}
@@ -301,7 +301,7 @@ function ResumaoModal({
                     <li key={l.devedor.id} className="flex flex-wrap sm:flex-nowrap items-center gap-x-3 gap-y-2 px-4 py-3 bg-cp-elevated/40">
                       <AlunoInfo devedor={l.devedor} />
                       <span
-                        className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium tabular-nums ${
+                        className={`shrink-0 mr-auto sm:mr-0 text-xs px-2 py-0.5 rounded-full border font-medium tabular-nums ${
                           l.cobraHoje
                             ? "bg-orange-400/10 text-orange-300 border-orange-400/25"
                             : "bg-cp-elevated text-gray-400 border-cp-border"
@@ -309,7 +309,7 @@ function ResumaoModal({
                       >
                         📅 {l.dataCombinada}
                       </span>
-                      <span className="w-24 text-right text-sm font-bold text-red-400 tabular-nums shrink-0">
+                      <span className="sm:w-24 text-right text-sm font-bold text-red-400 tabular-nums shrink-0">
                         {fmt(l.total)}
                       </span>
                       <WhatsAppBtn
@@ -393,7 +393,7 @@ function Vazio({ texto }: { texto: string }) {
 function AlunoInfo({ devedor }: { devedor: Devedor }) {
   return (
     <div className="basis-full sm:basis-auto sm:flex-1 min-w-0">
-      <p className="text-sm font-medium text-white truncate">{devedor.nome}</p>
+      <p className="text-base sm:text-sm font-medium text-white break-words">{devedor.nome}</p>
       <p className="text-xs text-gray-500 mt-0.5">{devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}</p>
     </div>
   );
@@ -407,7 +407,7 @@ function WhatsAppBtn({ devedor, onClick }: { devedor: Devedor; onClick: () => vo
       disabled={!temTel}
       title={temTel ? "Ver prévia e enviar via WhatsApp" : "Cadastre o telefone no perfil do aluno"}
       aria-label="Cobrar no WhatsApp"
-      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+      className={`shrink-0 min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
         temTel
           ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
           : "bg-gray-700 text-gray-400 cursor-not-allowed"

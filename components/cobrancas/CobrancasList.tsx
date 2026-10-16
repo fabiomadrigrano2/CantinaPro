@@ -641,67 +641,73 @@ function DevedorCard({
 
       <div className="rounded-2xl border border-cp-border bg-cp-surface overflow-hidden">
         {/* Cabeçalho do aluno */}
-        <div className="flex items-center justify-between px-5 py-4 bg-cp-elevated border-b border-cp-border">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-white truncate">{devedor.nome}</p>
-              <span
-                className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full border font-medium ${
-                  devedor.tipo_conta === "fiado"
-                    ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
-                    : "bg-emerald-400/10 text-emerald-400 border-emerald-400/20"
-                }`}
-              >
-                {devedor.tipo_conta === "fiado" ? "Fiado" : "Crédito"}
-              </span>
+        {/* Mobile: linha 1 = nome/badge/turma/valor, linha 2 = ações. Desktop: tudo em uma linha */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 bg-cp-elevated border-b border-cp-border">
+          <div className="flex items-start justify-between gap-3 min-w-0 sm:flex-1">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <p className="text-base sm:text-sm font-semibold text-white break-words">{devedor.nome}</p>
+                <span
+                  className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full border font-medium ${
+                    devedor.tipo_conta === "fiado"
+                      ? "bg-amber-400/10 text-amber-400 border-amber-400/20"
+                      : "bg-emerald-400/10 text-emerald-400 border-emerald-400/20"
+                  }`}
+                >
+                  {devedor.tipo_conta === "fiado" ? "Fiado" : "Crédito"}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              {devedor.turma ? `Turma ${devedor.turma}` : "Sem turma"}
-            </p>
+            <span className="sm:hidden shrink-0 text-base font-bold text-red-400 tabular-nums">
+              {fmt(saldoDevedor)}
+            </span>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-3 sm:ml-4">
-            <span className="text-sm font-bold text-red-400 tabular-nums">
+          <div className="flex items-stretch sm:items-center gap-2 sm:gap-3 sm:shrink-0">
+            <span className="hidden sm:inline text-sm font-bold text-red-400 tabular-nums">
               {fmt(saldoDevedor)}
             </span>
             <button
               onClick={() => setExtratoAberto(true)}
               title="Ver extrato detalhado do aluno"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
+              className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
             >
               <span>📋</span>
-              <span className="hidden sm:inline">Extrato</span>
+              <span>Extrato</span>
             </button>
             <button
               onClick={() => setPdfAberto(true)}
               title="Baixar extrato em PDF"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
+              className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
             >
               <span>📄</span>
-              <span className="hidden sm:inline">PDF</span>
+              <span>PDF</span>
             </button>
             <button
               onClick={temTel ? onPreview : undefined}
               disabled={!temTel}
               title={temTel ? "Ver prévia e enviar via WhatsApp" : "Cadastre o telefone no perfil do aluno"}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${
                 temTel
                   ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
                   : "bg-gray-700 text-gray-400 cursor-not-allowed"
               }`}
             >
               {WHATSAPP_ICON}
-              <span className="hidden sm:inline">WhatsApp</span>
+              <span>WhatsApp</span>
             </button>
             {saldoDevedor > 0 && (
               <button
                 onClick={() => setQuitarAberto(true)}
                 title="Quitar toda a dívida do aluno"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+                className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="hidden sm:inline">Quitar tudo</span>
+                <span className="whitespace-nowrap">Quitar tudo</span>
               </button>
             )}
           </div>
@@ -733,9 +739,9 @@ function DevedorCard({
               return (
                 <div
                   key={ciclo.semana_inicio}
-                  className="flex items-center justify-between gap-4 px-5 py-3"
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 sm:px-5 py-3"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
                     <span
                       className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${
                         isCurrent
@@ -755,7 +761,7 @@ function DevedorCard({
 
                   <button
                     onClick={() => setPagamentoModal(ciclo.semana_inicio)}
-                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+                    className="shrink-0 ml-auto min-h-[44px] sm:min-h-0 flex items-center gap-1.5 px-4 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
                   >
                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -964,7 +970,7 @@ export default function CobrancasList({
                   >
                     <div className="flex items-center justify-between md:justify-start gap-3">
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{a.nome}</p>
+                        <p className="text-sm font-medium text-white break-words">{a.nome}</p>
                         <p className="text-xs text-gray-500 mt-0.5 md:hidden">{a.turma ?? "—"}</p>
                       </div>
                       <button
