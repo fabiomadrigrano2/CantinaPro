@@ -176,11 +176,11 @@ export default function CardapioDoDia({
               <h3 className="text-white font-bold text-base flex items-center gap-2">
                 🍽️ Cardápio de Hoje
               </h3>
-              <p className="text-gray-500 text-xs mt-1 capitalize">{dataFormatada}</p>
+              <p className="text-gray-500 text-sm mt-1 capitalize">{dataFormatada}</p>
             </div>
             <button
               onClick={openModal}
-              className="shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-gray-400 hover:text-orange-400 border border-cp-border hover:border-orange-500/40 rounded-lg px-3 py-1.5 transition"
+              className="shrink-0 min-h-[44px] inline-flex items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-orange-400 border border-cp-border hover:border-orange-500/40 rounded-lg px-3 py-1.5 transition"
             >
               ✏️ Editar Cardápio
             </button>
@@ -200,7 +200,7 @@ export default function CardapioDoDia({
                     <span className={`shrink-0 text-xs font-semibold ${info.textCls}`}>{info.label}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-gray-500 mb-1.5">
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
                     <span>Disponível: {item.quantidade_disponivel}</span>
                     <span>Vendido: {item.vendido}</span>
                   </div>
@@ -225,7 +225,7 @@ export default function CardapioDoDia({
           onClick={closeModal}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border sticky top-0 bg-cp-surface z-10">
@@ -253,7 +253,7 @@ export default function CardapioDoDia({
                 </p>
               </div>
 
-              <div className="space-y-2 max-h-[45vh] overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-[45dvh] overflow-y-auto pr-1">
                 {produtosFiltrados.length === 0 ? (
                   <p className="text-sm text-gray-600 text-center py-6">Nenhum produto encontrado.</p>
                 ) : (
@@ -286,7 +286,7 @@ export default function CardapioDoDia({
                             step="1"
                             value={selecionados[p.id]}
                             onChange={(e) => setQuantidade(p.id, e.target.value)}
-                            className="w-16 px-2 py-1.5 rounded-md bg-cp-surface border border-cp-border text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500 shrink-0"
+                            className="w-16 min-h-[44px] px-2 py-1.5 rounded-md bg-cp-surface border border-cp-border text-white text-sm text-center focus:outline-none focus:ring-2 focus:ring-orange-500 shrink-0"
                           />
                         )}
                       </div>
@@ -305,14 +305,14 @@ export default function CardapioDoDia({
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-semibold transition"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-semibold transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <>

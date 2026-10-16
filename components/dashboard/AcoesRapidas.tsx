@@ -188,7 +188,7 @@ function BuscaAlunoModal({
         role="dialog"
         aria-modal="true"
         aria-label="Buscar aluno"
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[84vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[84dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-cp-border shrink-0">

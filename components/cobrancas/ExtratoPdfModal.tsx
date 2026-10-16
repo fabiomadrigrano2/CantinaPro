@@ -68,17 +68,17 @@ export default function ExtratoPdfModal({
       onClick={onClose}
     >
       <div
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl max-h-[90dvh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between p-5 border-b border-cp-border">
           <div className="min-w-0">
             <h2 className="text-base font-semibold text-white leading-tight">📄 Extrato em PDF</h2>
-            <p className="text-sm text-gray-500 mt-1 truncate">{aluno.nome}</p>
+            <p className="text-sm text-gray-500 mt-1 break-words">{aluno.nome}</p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+            className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -88,7 +88,7 @@ export default function ExtratoPdfModal({
         </div>
 
         <div className="p-5 space-y-2">
-          <p className="text-xs text-gray-500 mb-3">Escolha o período para baixar:</p>
+          <p className="text-sm text-gray-500 mb-3">Escolha o período para baixar:</p>
           {PERIODOS.map((p) => {
             const periodo = getPeriodo(p.id, hoje);
             const carregando = pedidos === null && !error;
@@ -102,21 +102,21 @@ export default function ExtratoPdfModal({
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-white">{p.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 truncate">{periodo.label}</p>
+                  <p className="text-sm text-gray-500 mt-0.5">{periodo.label}</p>
                 </div>
                 {gerando === p.id ? (
                   <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin shrink-0" />
                 ) : (
-                  <span className="text-xs font-semibold text-orange-400 shrink-0">Baixar</span>
+                  <span className="text-sm font-semibold text-orange-400 shrink-0">Baixar</span>
                 )}
               </button>
             );
           })}
 
           {pedidos === null && !error && (
-            <p className="text-xs text-gray-600 text-center pt-1">Carregando consumos…</p>
+            <p className="text-sm text-gray-500 text-center pt-1">Carregando consumos…</p>
           )}
-          {error && <p className="text-xs text-red-400 pt-1">{error}</p>}
+          {error && <p className="text-sm text-red-400 pt-1">{error}</p>}
         </div>
       </div>
     </div>

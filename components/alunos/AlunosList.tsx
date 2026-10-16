@@ -421,12 +421,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           placeholder="Buscar por nome ou turma..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 px-4 py-2.5 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+          className="flex-1 min-w-0 min-h-[44px] px-4 py-2.5 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
         />
         <button
           onClick={() => setMostrarInativos((v) => !v)}
           title={mostrarInativos ? "Ver alunos ativos" : "Ver alunos inativos"}
-          className={`shrink-0 flex items-center gap-2 px-4 py-2.5 border text-sm font-medium rounded-lg transition-all ${
+          aria-label={mostrarInativos ? "Ver alunos ativos" : "Ver alunos inativos"}
+          className={`shrink-0 min-h-[44px] min-w-[44px] justify-center flex items-center gap-2 px-3 sm:px-4 py-2.5 border text-sm font-medium rounded-lg transition-all ${
             mostrarInativos
               ? "bg-gray-500/20 border-gray-500/50 text-gray-200"
               : "bg-cp-elevated border-cp-border text-gray-500 hover:text-gray-300 hover:border-cp-muted"
@@ -440,9 +441,10 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
         </button>
         <button
           onClick={openModal}
-          className="shrink-0 flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-semibold text-sm rounded-lg transition-all shadow-md shadow-orange-500/20"
+          aria-label="Novo aluno"
+          className="shrink-0 min-h-[44px] min-w-[44px] justify-center flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-semibold text-sm rounded-lg transition-all shadow-md shadow-orange-500/20"
         >
-          <span className="text-base leading-none">+</span>
+          <span className="text-xl leading-none">+</span>
           <span className="hidden sm:inline">Novo Aluno</span>
         </button>
       </div>
@@ -735,7 +737,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           onClick={closeModal}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] flex flex-col overflow-hidden"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90dvh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border shrink-0">
@@ -744,7 +746,8 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               </h3>
               <button
                 onClick={closeModal}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-sm"
+                aria-label="Fechar"
+                className="-mr-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-base"
               >
                 ✕
               </button>
@@ -789,20 +792,21 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                         className="flex items-center gap-2 rounded-lg bg-cp-elevated border border-cp-border px-3 py-2.5"
                       >
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium truncate">{resp.nome}</p>
+                          <p className="text-sm text-white font-medium break-words">{resp.nome}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {resp.parentesco && (
                               <span className="text-xs text-gray-500 capitalize">{resp.parentesco}</span>
                             )}
                             {resp.email && (
-                              <span className="text-xs text-gray-600 truncate">{resp.email}</span>
+                              <span className="text-xs text-gray-500 break-all">{resp.email}</span>
                             )}
                           </div>
                         </div>
                         <button
                           type="button"
                           onClick={() => handleRemoveResponsavel(resp)}
-                          className="shrink-0 w-6 h-6 flex items-center justify-center rounded text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition text-xs"
+                          aria-label="Remover responsável"
+                          className="shrink-0 -mr-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition text-sm"
                         >
                           ✕
                         </button>
@@ -841,12 +845,12 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                     <option value="tio">Tio / Tia</option>
                     <option value="responsavel">Responsável</option>
                   </select>
-                  {respError && <p className="text-xs text-red-400">{respError}</p>}
+                  {respError && <p className="text-sm text-red-400">{respError}</p>}
                   <button
                     type="button"
                     onClick={handleAddResponsavel}
                     disabled={savingResp || !respForm.nome.trim()}
-                    className="w-full py-2 px-4 bg-cp-elevated border border-cp-border hover:border-orange-500/40 hover:text-orange-400 disabled:opacity-40 text-gray-300 text-sm font-medium rounded-lg transition"
+                    className="w-full min-h-[44px] py-2 px-4 bg-cp-elevated border border-cp-border hover:border-orange-500/40 hover:text-orange-400 disabled:opacity-40 text-gray-300 text-sm font-medium rounded-lg transition"
                   >
                     {savingResp ? "Adicionando..." : "+ Adicionar responsável"}
                   </button>
@@ -912,7 +916,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   {(["credito", "fiado"] as const).map((tipo) => (
                     <label
                       key={tipo}
-                      className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border cursor-pointer transition text-sm font-medium ${
+                      className={`flex items-center justify-center gap-2 min-h-[44px] py-2.5 rounded-lg border cursor-pointer transition text-sm font-medium ${
                         form.tipo_conta === tipo
                           ? "border-orange-500 bg-orange-500/10 text-white"
                           : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
@@ -962,20 +966,20 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   min="0" max="50" step="1"
                   value={form.limite_diario}
                   onChange={(e) => set("limite_diario", e.target.value)}
-                  className="w-full h-1.5 rounded-full appearance-none cursor-pointer
+                  className="w-full h-2 my-3 rounded-full appearance-none cursor-pointer
                     [&::-webkit-slider-thumb]:appearance-none
-                    [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4
+                    [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6
                     [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-orange-500
                     [&::-webkit-slider-thumb]:shadow [&::-webkit-slider-thumb]:shadow-orange-500/40
                     [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:border-0
-                    [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4
+                    [&::-moz-range-thumb]:h-6 [&::-moz-range-thumb]:w-6
                     [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-orange-500
                     [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:cursor-pointer"
                   style={{
                     background: `linear-gradient(to right, #f97316 ${(parseInt(form.limite_diario) / 50) * 100}%, #374151 ${(parseInt(form.limite_diario) / 50) * 100}%)`,
                   }}
                 />
-                <div className="flex justify-between mt-1.5 text-[11px] text-gray-600 select-none">
+                <div className="flex justify-between mt-1.5 text-xs text-gray-500 select-none">
                   <span>Sem limite</span>
                   <span>R$ 50</span>
                 </div>
@@ -1018,7 +1022,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                       {(["semanal", "mensal"] as const).map((ciclo) => (
                         <label
                           key={ciclo}
-                          className={`flex items-center justify-center gap-2 py-2.5 rounded-lg border cursor-pointer transition text-sm font-medium ${
+                          className={`flex items-center justify-center gap-2 min-h-[44px] py-2.5 rounded-lg border cursor-pointer transition text-sm font-medium ${
                             form.ciclo_cobranca === ciclo
                               ? "border-orange-500 bg-orange-500/10 text-white"
                               : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
@@ -1068,13 +1072,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               <div className="flex gap-3 pt-1">
                 <button
                   type="button" onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit" disabled={saving}
-                  className="flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Salvando...</>
@@ -1092,7 +1096,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           onClick={() => setCreditoAluno(null)}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border">
@@ -1102,7 +1106,8 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               </div>
               <button
                 onClick={() => setCreditoAluno(null)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-sm"
+                aria-label="Fechar"
+                className="-mr-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-base"
               >
                 ✕
               </button>
@@ -1136,7 +1141,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   {FORMAS_PAGAMENTO.map((f) => (
                     <label
                       key={f.value}
-                      className={`flex items-center justify-center py-2 rounded-lg border cursor-pointer transition text-sm font-medium ${
+                      className={`flex items-center justify-center min-h-[44px] py-2 rounded-lg border cursor-pointer transition text-sm font-medium ${
                         pagamentoForm.forma_pagamento === f.value
                           ? "border-orange-500 bg-orange-500/10 text-white"
                           : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
@@ -1163,13 +1168,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               <div className="flex gap-3 pt-1">
                 <button
                   type="button" onClick={() => setCreditoAluno(null)}
-                  className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit" disabled={pagamentoSaving}
-                  className="flex-1 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                 >
                   {pagamentoSaving ? (
                     <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Salvando...</>
@@ -1188,7 +1193,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           onClick={() => setFiadoAluno(null)}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border">
@@ -1198,7 +1203,8 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               </div>
               <button
                 onClick={() => setFiadoAluno(null)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-sm"
+                aria-label="Fechar"
+                className="-mr-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-base"
               >
                 ✕
               </button>
@@ -1231,7 +1237,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                   {FORMAS_PAGAMENTO.map((f) => (
                     <label
                       key={f.value}
-                      className={`flex items-center justify-center py-2 rounded-lg border cursor-pointer transition text-sm font-medium ${
+                      className={`flex items-center justify-center min-h-[44px] py-2 rounded-lg border cursor-pointer transition text-sm font-medium ${
                         pagamentoForm.forma_pagamento === f.value
                           ? "border-orange-500 bg-orange-500/10 text-white"
                           : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
@@ -1281,13 +1287,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
               <div className="flex gap-3 pt-1">
                 <button
                   type="button" onClick={() => setFiadoAluno(null)}
-                  className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit" disabled={pagamentoSaving}
-                  className="flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                 >
                   {pagamentoSaving ? (
                     <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Salvando...</>
@@ -1306,7 +1312,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
           onClick={() => setDeletingAluno(null)}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 pt-6 pb-4">
@@ -1333,14 +1339,14 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
             <div className="flex gap-3 px-6 pb-6">
               <button
                 onClick={() => setDeletingAluno(null)}
-                className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
+                className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
-                className="flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
               >
                 {deleting ? (
                   <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Desativando...</>

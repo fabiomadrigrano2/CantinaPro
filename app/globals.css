@@ -27,3 +27,19 @@ input:-webkit-autofill:active {
 * {
   box-sizing: border-box;
 }
+
+/* Nada na página deve gerar scroll horizontal no celular. `clip` (e não
+   `hidden`) para não quebrar o header sticky. */
+html,
+body {
+  overflow-x: clip;
+}
+
+/* iOS dá zoom automático ao focar campos com fonte < 16px */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

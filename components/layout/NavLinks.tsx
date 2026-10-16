@@ -141,7 +141,7 @@ export default function NavLinks() {
 
       {/* ── Hamburger button (mobile) ──────────────────── */}
       <button
-        className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:text-white hover:bg-cp-elevated transition"
+        className="md:hidden -ml-1 flex items-center justify-center w-11 h-11 rounded-lg text-gray-400 hover:text-white hover:bg-cp-elevated transition"
         onClick={() => setOpen((v) => !v)}
         aria-label={open ? "Fechar menu" : "Abrir menu"}
       >
@@ -172,7 +172,7 @@ export default function NavLinks() {
                 <Link
                   key={href}
                   href={href}
-                  className={`flex items-center gap-3 px-5 py-3.5 text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-3 px-5 py-3.5 text-base font-medium transition-colors ${
                     active
                       ? "bg-orange-500/10 text-orange-400 border-r-2 border-orange-500"
                       : "text-gray-400 hover:text-white hover:bg-cp-elevated"

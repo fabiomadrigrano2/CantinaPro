@@ -337,11 +337,11 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
           placeholder="Buscar produto..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 px-4 py-2 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+          className="flex-1 min-w-0 min-h-[44px] px-4 py-2 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
         />
         <button
           onClick={openModal}
-          className="shrink-0 flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-semibold text-sm rounded-lg transition-all shadow-md shadow-orange-500/20"
+          className="shrink-0 min-h-[44px] flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-semibold text-sm rounded-lg transition-all shadow-md shadow-orange-500/20"
         >
           + Novo Produto
         </button>
@@ -356,7 +356,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
             <button
               key={tab.value}
               onClick={() => setCategoriaFiltro(tab.value)}
-              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+              className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
                 active
                   ? "bg-orange-500/15 border-orange-500/50 text-orange-400"
                   : "bg-cp-elevated border-cp-border text-gray-400 hover:text-gray-200 hover:border-cp-muted"
@@ -387,7 +387,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
           {!search && categoriaFiltro === "todos" && (
             <button
               onClick={openModal}
-              className="mt-4 text-sm text-orange-400 hover:text-orange-300 transition"
+              className="mt-4 min-h-[44px] px-3 text-base text-orange-400 hover:text-orange-300 transition"
             >
               Cadastrar primeiro produto →
             </button>
@@ -408,20 +408,22 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                 {/* botões editar e excluir */}
                 <button
                   onClick={() => openEditModal(p)}
-                  className="absolute top-2 right-9 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
+                  aria-label="Editar produto"
+                  className="absolute top-1 right-12 md:top-2 md:right-9 z-10 md:opacity-0 md:group-hover:opacity-100 w-11 h-11 md:w-7 md:h-7 flex items-center justify-center rounded-lg bg-black/55 md:bg-transparent text-gray-200 md:text-gray-500 hover:text-orange-400 hover:bg-orange-500/10 transition-all"
                   title="Editar produto"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 md:w-3.5 md:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
                   </svg>
                 </button>
                 <button
                   onClick={(e) => { e.stopPropagation(); setDeleteError(null); setDeleteModal(p); }}
-                  className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                  aria-label="Excluir produto"
+                  className="absolute top-1 right-1 md:top-2 md:right-2 z-10 md:opacity-0 md:group-hover:opacity-100 w-11 h-11 md:w-7 md:h-7 flex items-center justify-center rounded-lg bg-black/55 md:bg-transparent text-gray-200 md:text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
                   title="Excluir produto"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 md:w-3.5 md:h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6"/>
                     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
                     <path d="M10 11v6M14 11v6"/>
@@ -432,7 +434,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                 {/* botão repor estoque */}
                 <button
                   onClick={(e) => { e.stopPropagation(); openReposModal(p); }}
-                  className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all font-bold text-base leading-none"
+                  className="absolute top-2 left-2 z-10 opacity-0 group-hover:opacity-100 w-7 h-7 hidden md:flex items-center justify-center rounded-lg text-gray-500 hover:text-emerald-400 hover:bg-emerald-500/10 transition-all font-bold text-base leading-none"
                   title="Repor estoque"
                 >
                   +
@@ -453,17 +455,17 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                   <p className="text-sm font-medium text-white leading-snug line-clamp-2">{p.nome}</p>
                   <p className="text-base font-bold text-orange-400">{fmt(p.preco)}</p>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border ${stock.cls}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${stock.cls}`}>
                       {stock.label}
                     </span>
-                    <span className="text-[11px] px-2 py-0.5 rounded-full border bg-gray-400/10 text-gray-500 border-gray-400/20">
+                    <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-400/10 text-gray-500 border-gray-400/20">
                       {catLabel}
                     </span>
                   </div>
                   {/* botão de reposição sempre visível na base do card */}
                   <button
                     onClick={(e) => { e.stopPropagation(); openReposModal(p); }}
-                    className="mt-auto pt-2 w-full py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 text-[11px] font-medium hover:bg-emerald-500/15 hover:border-emerald-500/40 hover:text-emerald-400 transition flex items-center justify-center gap-1"
+                    className="mt-auto w-full min-h-[44px] md:min-h-0 py-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 text-sm md:text-xs font-medium hover:bg-emerald-500/15 hover:border-emerald-500/40 hover:text-emerald-400 transition flex items-center justify-center gap-1"
                   >
                     <span className="text-sm font-bold leading-none">+</span> Repor estoque
                   </button>
@@ -487,7 +489,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
           onClick={closeModal}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border sticky top-0 bg-cp-surface z-10">
@@ -496,7 +498,8 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
               </h3>
               <button
                 onClick={closeModal}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-sm"
+                aria-label="Fechar"
+                className="-mr-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-base"
               >
                 ✕
               </button>
@@ -511,7 +514,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                     type="text" maxLength={2}
                     value={form.emoji}
                     onChange={(e) => set("emoji", e.target.value)}
-                    className="w-14 h-10 text-center text-2xl rounded-lg bg-cp-elevated border border-cp-border text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+                    className="w-14 h-11 text-center text-2xl rounded-lg bg-cp-elevated border border-cp-border text-white focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
                   />
                 </div>
                 <div className="flex-1">
@@ -561,7 +564,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                           setImageFile(null);
                           setImagePreview(editingProduto?.foto_url ?? null);
                         }}
-                        className="mt-1.5 text-xs text-gray-600 hover:text-red-400 transition"
+                        className="mt-1 min-h-[44px] text-sm text-gray-500 hover:text-red-400 transition"
                       >
                         Remover foto
                       </button>
@@ -579,7 +582,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                   {CATEGORIAS.map((cat) => (
                     <label
                       key={cat.value}
-                      className={`flex items-center justify-center py-2 rounded-lg border cursor-pointer transition text-sm font-medium ${
+                      className={`flex items-center justify-center min-h-[44px] py-2 rounded-lg border cursor-pointer transition text-sm font-medium ${
                         form.categoria === cat.value
                           ? "border-orange-500 bg-orange-500/10 text-white"
                           : "border-cp-border bg-cp-elevated text-gray-400 hover:border-cp-muted"
@@ -637,13 +640,13 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
               <div className="flex gap-3 pt-1">
                 <button
                   type="button" onClick={closeModal}
-                  className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit" disabled={saving}
-                  className="flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                 >
                   {saving ? (
                     <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Salvando...</>
@@ -662,7 +665,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
           onClick={() => !deleting && setDeleteModal(null)}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-6 py-5 space-y-4">
@@ -697,7 +700,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                   type="button"
                   onClick={() => setDeleteModal(null)}
                   disabled={deleting}
-                  className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition disabled:opacity-50"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition disabled:opacity-50"
                 >
                   Cancelar
                 </button>
@@ -705,7 +708,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                   type="button"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-red-600/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                  className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-red-600/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                 >
                   {deleting ? (
                     <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Removendo...</>
@@ -724,7 +727,7 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
           onClick={closeReposModal}
         >
           <div
-            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl"
+            className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-sm shadow-2xl max-h-[90dvh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-6 py-4 border-b border-cp-border">
@@ -734,7 +737,8 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
               {!reposSuccess && (
                 <button
                   onClick={closeReposModal}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-sm"
+                  aria-label="Fechar"
+                className="-mr-2 w-11 h-11 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-cp-elevated transition text-base"
                 >
                   ✕
                 </button>
@@ -799,14 +803,14 @@ export default function ProdutosList({ initialProdutos }: { initialProdutos: Pro
                   <button
                     type="button"
                     onClick={closeReposModal}
-                    className="flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
+                    className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={reposSaving}
-                    className="flex-1 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+                    className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
                   >
                     {reposSaving ? (
                       <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Salvando...</>

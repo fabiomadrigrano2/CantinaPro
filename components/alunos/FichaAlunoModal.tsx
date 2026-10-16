@@ -143,7 +143,7 @@ export default function FichaAlunoModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="ficha-titulo"
-        className="bg-cp-surface border border-cp-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[92vh]"
+        className="bg-cp-surface border border-cp-border rounded-t-2xl sm:rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[92dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho: nome + saldo */}

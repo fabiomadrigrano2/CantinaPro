@@ -231,18 +231,18 @@ export default function ExtratoDetalhadoModal({
       onClick={onClose}
     >
       <div
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
           <div>
-            <h2 className="text-base font-semibold text-white leading-tight">
+            <h2 className="text-base font-semibold text-white leading-tight break-words">
               📋 Extrato de {devedor.nome}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+            className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -258,7 +258,7 @@ export default function ExtratoDetalhadoModal({
                 key={p.id}
                 type="button"
                 onClick={() => setPeriodo(p.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                className={`min-h-[44px] px-3 py-2 rounded-lg text-sm font-semibold border transition-all ${
                   periodo === p.id
                     ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
                     : "bg-cp-elevated border-cp-border text-gray-400 hover:border-gray-500"
@@ -280,41 +280,41 @@ export default function ExtratoDetalhadoModal({
             </div>
           ) : (
             <>
-              <p className="text-xs text-gray-500 shrink-0">Edite o extrato antes de copiar ou enviar:</p>
+              <p className="text-sm text-gray-500 shrink-0">Edite o extrato antes de copiar ou enviar:</p>
               <textarea
                 value={msg}
                 onChange={(e) => {
                   setMsg(e.target.value);
                   setEditado(true);
                 }}
-                className="flex-1 min-h-[220px] w-full bg-cp-elevated border border-cp-border rounded-xl p-4 text-sm text-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition leading-relaxed"
+                className="flex-1 min-h-[160px] sm:min-h-[220px] w-full bg-cp-elevated border border-cp-border rounded-xl p-4 text-sm text-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition leading-relaxed"
               />
             </>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-4 border-t border-cp-border shrink-0">
           <button
             onClick={() => {
               setMsg(textoGerado);
               setEditado(false);
             }}
             disabled={!editado}
-            className="text-xs text-gray-600 hover:text-gray-400 transition-colors disabled:opacity-0"
+            className="min-h-[44px] text-sm text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-0"
           >
             Restaurar original
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+              className="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
             >
               Fechar
             </button>
             <button
               onClick={handleCopiar}
               disabled={pedidos === null}
-              className="flex items-center gap-2 px-4 py-2 bg-cp-elevated border border-cp-border hover:border-gray-500 text-gray-200 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 bg-cp-elevated border border-cp-border hover:border-gray-500 text-gray-200 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {copiado ? "Copiado!" : "Copiar extrato"}
             </button>
@@ -325,7 +325,7 @@ export default function ExtratoDetalhadoModal({
               onClick={() => temTel && onClose()}
               aria-disabled={!temTel || pedidos === null}
               title={temTel ? "Enviar no WhatsApp" : "Cadastre o telefone no perfil do aluno"}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow ${
+              className={`min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow ${
                 temTel && pedidos !== null
                   ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20 cursor-pointer"
                   : "bg-gray-700 text-gray-400 shadow-none cursor-not-allowed pointer-events-none"

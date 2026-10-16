@@ -32,7 +32,7 @@ function AlunoRow({
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-cp-border bg-cp-surface hover:bg-cp-elevated transition-colors">
-      <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm ${
+      <div className={`hidden sm:flex w-8 h-8 rounded-full items-center justify-center shrink-0 text-sm ${
         isSaldo
           ? "bg-amber-400/10 text-amber-400"
           : "bg-red-500/10 text-red-400"
@@ -41,7 +41,7 @@ function AlunoRow({
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-white truncate">{aluno.nome}</p>
+        <p className="text-sm font-medium text-white break-words">{aluno.nome}</p>
         <p className="text-xs text-gray-500 mt-0.5">{aluno.turma ?? "—"}</p>
       </div>
 
@@ -56,7 +56,7 @@ function AlunoRow({
           <p className="text-sm font-bold text-red-400 tabular-nums">
             {fmt(Math.abs(aluno.saldo))}
           </p>
-          <p className="text-[11px] text-gray-600 mt-0.5">em aberto</p>
+          <p className="text-xs text-gray-500 mt-0.5">em aberto</p>
         </div>
       )}
     </div>
@@ -107,7 +107,7 @@ export default function AlunoListSection({
         <div className="flex justify-center mt-3">
           <button
             onClick={() => setExpandido((v) => !v)}
-            className="px-4 py-2 text-sm font-medium text-gray-300 bg-cp-elevated hover:bg-cp-border border border-cp-border rounded-xl transition-all"
+            className="min-h-[44px] px-4 py-2 text-sm font-medium text-gray-300 bg-cp-elevated hover:bg-cp-border border border-cp-border rounded-xl transition-all"
           >
             {expandido ? "Ver menos" : `Ver mais (${alunos.length - LIMITE_VISIVEL})`}
           </button>

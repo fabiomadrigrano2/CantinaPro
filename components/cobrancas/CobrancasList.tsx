@@ -135,7 +135,7 @@ export function ExtratoModal({
       onClick={onClose}
     >
       <div
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
@@ -154,7 +154,7 @@ export function ExtratoModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+            className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -164,25 +164,25 @@ export function ExtratoModal({
         </div>
 
         <div className="p-5 flex flex-col gap-2 flex-1 overflow-hidden">
-          <p className="text-xs text-gray-500 shrink-0">Edite a mensagem antes de enviar:</p>
+          <p className="text-sm text-gray-500 shrink-0">Edite a mensagem antes de enviar:</p>
           <textarea
             value={msg}
             onChange={(e) => setMsg(e.target.value)}
-            className="flex-1 min-h-[220px] w-full bg-cp-elevated border border-cp-border rounded-xl p-4 text-sm text-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition leading-relaxed"
+            className="flex-1 min-h-[160px] sm:min-h-[220px] w-full bg-cp-elevated border border-cp-border rounded-xl p-4 text-sm text-gray-200 resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition leading-relaxed"
           />
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-4 border-t border-cp-border shrink-0">
           <button
             onClick={() => setMsg(initialMessage)}
-            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+            className="min-h-[44px] text-sm text-gray-500 hover:text-gray-300 transition-colors"
           >
             Restaurar original
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+              className="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
             >
               Cancelar
             </button>
@@ -191,7 +191,7 @@ export function ExtratoModal({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20"
+              className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20"
             >
               {WHATSAPP_ICON}
               Enviar no WhatsApp
@@ -273,7 +273,7 @@ function ConfirmacaoPagamentoModal({
       onClick={onClose}
     >
       <div
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
@@ -284,7 +284,7 @@ function ConfirmacaoPagamentoModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+            className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -295,7 +295,7 @@ function ConfirmacaoPagamentoModal({
 
         {/* Corpo */}
         <div className="p-5 flex flex-col gap-3 flex-1 overflow-y-auto">
-          <p className="text-xs text-gray-500 shrink-0">Selecione as semanas pagas:</p>
+          <p className="text-sm text-gray-500 shrink-0">Selecione as semanas pagas:</p>
 
           {ciclos.map((ciclo) => {
             const checked = selecionados.has(ciclo.semana_inicio);
@@ -313,9 +313,9 @@ function ConfirmacaoPagamentoModal({
                   type="checkbox"
                   checked={checked}
                   onChange={() => toggleCiclo(ciclo.semana_inicio)}
-                  className="w-4 h-4 accent-emerald-500 shrink-0"
+                  className="w-5 h-5 accent-emerald-500 shrink-0"
                 />
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 flex-1 min-w-0">
                   <span
                     className={`shrink-0 text-xs px-2 py-0.5 rounded-full border font-medium ${
                       isCurrent
@@ -338,14 +338,14 @@ function ConfirmacaoPagamentoModal({
 
           {/* Forma de pagamento */}
           <div className="mt-1">
-            <p className="text-xs text-gray-500 mb-2">Forma de pagamento:</p>
+            <p className="text-sm text-gray-500 mb-2">Forma de pagamento:</p>
             <div className="flex gap-2">
               {formasPagamento.map((f) => (
                 <button
                   key={f.id}
                   type="button"
                   onClick={() => setFormaPagamento(f.id)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                  className={`min-h-[44px] flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
                     formaPagamento === f.id
                       ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
                       : "bg-cp-elevated border-cp-border text-gray-400 hover:border-gray-500"
@@ -357,11 +357,11 @@ function ConfirmacaoPagamentoModal({
             </div>
           </div>
 
-          {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
+          {error && <p className="text-sm text-red-400 mt-1">{error}</p>}
         </div>
 
         {/* Rodapé */}
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-4 border-t border-cp-border shrink-0">
           <div>
             <p className="text-xs text-gray-500">Total a pagar</p>
             <p className="text-base font-bold text-white tabular-nums">{fmt(totalEfetivo)}</p>
@@ -371,17 +371,17 @@ function ConfirmacaoPagamentoModal({
               </p>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+              className="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
             >
               Cancelar
             </button>
             <button
               onClick={handleConfirmar}
               disabled={isPending || selecionados.size === 0}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isPending ? (
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -460,14 +460,14 @@ function QuitarTudoModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="quitar-tudo-titulo"
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Cabeçalho */}
         <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
           <div className="min-w-0">
             <h2 id="quitar-tudo-titulo" className="text-base font-semibold text-white">Quitar tudo</h2>
-            <p className="text-sm text-gray-400 mt-0.5 truncate">
+            <p className="text-sm text-gray-400 mt-0.5 break-words">
               {devedor.nome}
               {devedor.turma && <span className="text-gray-600"> · Turma {devedor.turma}</span>}
             </p>
@@ -475,7 +475,7 @@ function QuitarTudoModal({
           <button
             onClick={onClose}
             disabled={isPending}
-            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0 disabled:opacity-40"
+            className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0 disabled:opacity-40"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -515,7 +515,7 @@ function QuitarTudoModal({
 
           {/* Forma de pagamento */}
           <div className="mt-1">
-            <p className="text-xs text-gray-500 mb-2">Forma de pagamento:</p>
+            <p className="text-sm text-gray-500 mb-2">Forma de pagamento:</p>
             <div className="flex gap-2">
               {formasPagamento.map((f) => (
                 <button
@@ -523,7 +523,7 @@ function QuitarTudoModal({
                   type="button"
                   onClick={() => setFormaPagamento(f.id)}
                   disabled={isPending}
-                  className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                  className={`min-h-[44px] flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
                     formaPagamento === f.id
                       ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-400"
                       : "bg-cp-elevated border-cp-border text-gray-400 hover:border-gray-500"
@@ -548,18 +548,18 @@ function QuitarTudoModal({
         </div>
 
         {/* Rodapé */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2 px-5 py-4 border-t border-cp-border shrink-0">
           <button
             onClick={onClose}
             disabled={isPending}
-            className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg disabled:opacity-40"
+            className="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg disabled:opacity-40"
           >
             Cancelar
           </button>
           <button
             onClick={handleConfirmar}
             disabled={isPending}
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isPending ? (
               <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -672,7 +672,7 @@ function DevedorCard({
             <button
               onClick={() => setExtratoAberto(true)}
               title="Ver extrato detalhado do aluno"
-              className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
+              className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
             >
               <span>📋</span>
               <span>Extrato</span>
@@ -680,7 +680,7 @@ function DevedorCard({
             <button
               onClick={() => setPdfAberto(true)}
               title="Baixar extrato em PDF"
-              className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
+              className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-300 hover:border-gray-500"
             >
               <span>📄</span>
               <span>PDF</span>
@@ -689,7 +689,7 @@ function DevedorCard({
               onClick={temTel ? onPreview : undefined}
               disabled={!temTel}
               title={temTel ? "Ver prévia e enviar via WhatsApp" : "Cadastre o telefone no perfil do aluno"}
-              className={`flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all ${
+              className={`flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 temTel
                   ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
                   : "bg-gray-700 text-gray-400 cursor-not-allowed"
@@ -702,7 +702,7 @@ function DevedorCard({
               <button
                 onClick={() => setQuitarAberto(true)}
                 title="Quitar toda a dívida do aluno"
-                className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
+                className="flex-1 sm:flex-none min-h-[44px] sm:min-h-0 flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/50"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -865,12 +865,12 @@ export default function CobrancasList({
           placeholder="Buscar por aluno..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 px-4 py-2 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
+          className="flex-1 min-w-0 min-h-[44px] px-4 py-2 rounded-lg bg-cp-elevated border border-cp-border text-white placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition"
         />
         <select
           value={turmaFiltro}
           onChange={(e) => setTurmaFiltro(e.target.value)}
-          className="px-4 py-2 rounded-lg bg-cp-elevated border border-cp-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition min-w-[160px]"
+          className="min-h-[44px] px-4 py-2 rounded-lg bg-cp-elevated border border-cp-border text-white text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition min-w-[160px]"
         >
           <option value="todas">Todas as turmas</option>
           {turmas.map((t) => (
@@ -977,7 +977,7 @@ export default function CobrancasList({
                         onClick={openPreview}
                         disabled={!temTel}
                         title={waTitle}
-                        className={`md:hidden shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${waBtnCls}`}
+                        className={`md:hidden shrink-0 min-h-[44px] flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${waBtnCls}`}
                       >
                         {WHATSAPP_ICON}
                         WhatsApp

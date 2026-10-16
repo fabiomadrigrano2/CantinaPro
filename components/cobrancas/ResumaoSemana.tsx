@@ -83,7 +83,7 @@ export default function ResumaoSemana({
     <>
       <button
         onClick={() => setAberto(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-orange-500 hover:bg-orange-600 text-white shadow shadow-orange-500/20 shrink-0"
+        className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-orange-500 hover:bg-orange-600 text-white shadow shadow-orange-500/20 shrink-0"
       >
         <span>📊</span>
         Resumão da Semana
@@ -222,7 +222,7 @@ export function ResumaoModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="resumao-titulo"
-          className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh]"
+          className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90dvh]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Cabeçalho */}
@@ -235,7 +235,7 @@ export function ResumaoModal({
             </div>
             <button
               onClick={onClose}
-              className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+              className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0"
               aria-label="Fechar"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -333,19 +333,19 @@ export function ResumaoModal({
               <Total label="Total mensais" valor={totalMensais} />
               <Total label="Total de débitos" valor={totalDebitos} destaque />
             </div>
-            <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border">
-              <p className="text-xs text-red-400 min-w-0 truncate">{error}</p>
-              <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-4 border-t border-cp-border">
+              <p className="text-sm text-red-400 min-w-0 break-words">{error}</p>
+              <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+                  className="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
                 >
                   Fechar
                 </button>
                 <button
                   onClick={handleExportar}
                   disabled={gerando}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-200 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-cp-elevated border border-cp-border text-gray-200 hover:border-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span>📄</span>
                   {gerando ? "Gerando..." : "Exportar PDF"}

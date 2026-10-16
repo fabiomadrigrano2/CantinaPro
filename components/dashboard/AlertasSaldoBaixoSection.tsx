@@ -70,12 +70,12 @@ function AvisoWhatsAppModal({
       onClick={onClose}
     >
       <div
-        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]"
+        className="bg-cp-surface border border-cp-border rounded-2xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90dvh]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between p-5 border-b border-cp-border shrink-0">
           <div className="min-w-0">
-            <h2 className="text-base font-semibold text-white leading-tight truncate">{aluno.nome}</h2>
+            <h2 className="text-base font-semibold text-white leading-tight break-words">{aluno.nome}</h2>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1">
               <span className="text-sm text-gray-500">
                 Responsável: {aluno.nomeResponsavel?.trim() || "—"}
@@ -87,7 +87,7 @@ function AvisoWhatsAppModal({
           </div>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-white transition-colors ml-4 mt-0.5 shrink-0"
+            className="-mr-3 -mt-2.5 ml-2 w-11 h-11 flex items-center justify-center text-gray-500 hover:text-white transition-colors shrink-0"
             aria-label="Fechar"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -105,17 +105,17 @@ function AvisoWhatsAppModal({
           />
         </div>
 
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-cp-border shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 py-4 border-t border-cp-border shrink-0">
           <button
             onClick={() => setMsg(mensagemOriginal)}
-            className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+            className="min-h-[44px] text-sm text-gray-500 hover:text-gray-300 transition-colors"
           >
             Restaurar original
           </button>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3 ml-auto">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
+              className="min-h-[44px] px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors rounded-lg"
             >
               Cancelar
             </button>
@@ -124,7 +124,7 @@ function AvisoWhatsAppModal({
               target="_blank"
               rel="noopener noreferrer"
               onClick={onClose}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20"
+              className="min-h-[44px] flex items-center justify-center gap-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold transition-all shadow shadow-emerald-500/20"
             >
               {WHATSAPP_ICON}
               Enviar no WhatsApp
@@ -164,20 +164,20 @@ export default function AlertasSaldoBaixoSection({ alunos }: { alunos: AlunoAler
               key={a.id}
               className="flex items-center gap-3 px-4 py-3 rounded-xl border border-cp-border bg-cp-surface hover:bg-cp-elevated transition-colors"
             >
-              <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm bg-amber-400/10 text-amber-400">
+              <div className="hidden sm:flex w-8 h-8 rounded-full items-center justify-center shrink-0 text-sm bg-amber-400/10 text-amber-400">
                 🔔
               </div>
 
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{a.nome}</p>
-                <p className="text-xs text-gray-500 mt-0.5 truncate">{a.turma ?? "—"}</p>
+                <p className="text-sm font-medium text-white break-words">{a.nome}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{a.turma ?? "—"}</p>
               </div>
 
               <div className="text-right shrink-0">
                 <p className={`text-sm font-bold tabular-nums ${a.saldo < 0 ? "text-red-400" : "text-amber-400"}`}>
                   {fmt(a.saldo)}
                 </p>
-                <p className="text-[11px] text-gray-600 mt-0.5 tabular-nums">
+                <p className="text-xs text-gray-500 mt-0.5 tabular-nums">
                   limite {fmt(a.limite)}
                 </p>
               </div>
@@ -187,7 +187,7 @@ export default function AlertasSaldoBaixoSection({ alunos }: { alunos: AlunoAler
                 onClick={() => setAvisando(a)}
                 disabled={!temTel}
                 title={temTel ? "Revisar mensagem e avisar no WhatsApp" : "Cadastre o telefone do responsável no perfil do aluno"}
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20 disabled:bg-cp-elevated disabled:text-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
+                className="shrink-0 min-h-[44px] sm:min-h-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm sm:text-xs font-semibold transition-all bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20 disabled:bg-cp-elevated disabled:text-gray-600 disabled:shadow-none disabled:cursor-not-allowed"
               >
                 {WHATSAPP_ICON}
                 <span className="sm:hidden">Avisar</span>

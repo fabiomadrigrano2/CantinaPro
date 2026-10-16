@@ -505,7 +505,7 @@ export default function NovaVenda() {
 
   if (phase === "success") {
     return (
-      <div className="fixed inset-0 bg-cp-bg flex flex-col items-center justify-center gap-6 z-50 px-5">
+      <div className="fixed inset-0 bg-cp-bg flex flex-col items-center justify-center gap-6 z-50 px-5 py-8 overflow-y-auto">
         <div className="w-32 h-32 rounded-full bg-emerald-500/10 border-2 border-emerald-500/25 flex items-center justify-center">
           <span className="text-6xl text-emerald-400">✓</span>
         </div>
@@ -530,7 +530,7 @@ export default function NovaVenda() {
               <button
                 type="button"
                 onClick={resetAposVenda}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-400 hover:text-white bg-cp-elevated border border-cp-border transition"
+                className="flex-1 min-h-[48px] py-2.5 rounded-xl text-base font-medium text-gray-400 hover:text-white bg-cp-elevated border border-cp-border transition"
               >
                 Pular
               </button>
@@ -539,7 +539,7 @@ export default function NovaVenda() {
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={resetAposVenda}
-                className="flex-[2] py-2.5 rounded-xl text-sm font-semibold text-white text-center bg-emerald-500 hover:bg-emerald-600 shadow shadow-emerald-500/20 transition"
+                className="flex-[2] min-h-[48px] py-2.5 flex items-center justify-center rounded-xl text-base font-semibold text-white text-center bg-emerald-500 hover:bg-emerald-600 shadow shadow-emerald-500/20 transition"
               >
                 Enviar no WhatsApp
               </a>
@@ -556,7 +556,7 @@ export default function NovaVenda() {
                 />
               ))}
             </div>
-            <p className="text-xs text-gray-600 mt-1">Pronto para próxima venda...</p>
+            <p className="text-sm text-gray-500 mt-1">Pronto para próxima venda...</p>
           </>
         )}
       </div>
@@ -573,7 +573,8 @@ export default function NovaVenda() {
         <header className="shrink-0 bg-cp-surface border-b border-cp-border px-5 py-3.5 flex items-center gap-3">
           <button
             onClick={backToSearch}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-cp-elevated transition text-lg"
+            aria-label="Voltar"
+            className="w-11 h-11 -ml-2 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-cp-elevated transition text-xl"
           >
             ←
           </button>
@@ -591,7 +592,7 @@ export default function NovaVenda() {
               👤
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-white font-bold text-lg leading-tight truncate">
+              <p className="text-white font-bold text-lg leading-tight break-words">
                 {selectedAluno!.nome}
               </p>
               <p className="text-gray-500 text-sm mt-0.5">{selectedAluno!.turma}</p>
@@ -630,22 +631,22 @@ export default function NovaVenda() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-white font-medium text-sm leading-tight truncate">
+                  <p className="text-white font-medium text-base leading-tight break-words">
                     {product.nome}
                   </p>
-                  <p className="text-gray-500 text-xs mt-0.5">
+                  <p className="text-gray-500 text-sm mt-0.5">
                     {qty}× {fmt(product.preco)}
                   </p>
                 </div>
-                <p className="text-white font-bold text-sm shrink-0">
+                <p className="text-white font-bold text-base shrink-0">
                   {fmt(product.preco * qty)}
                 </p>
                 <button
                   onClick={() => removeFromCart(product.id)}
-                  className="ml-2 w-6 h-6 flex items-center justify-center rounded-full bg-red-500/20 text-red-400 hover:bg-red-500/40 hover:text-red-300 transition-colors shrink-0"
+                  className="-mr-2 w-11 h-11 flex items-center justify-center rounded-full text-red-400 hover:text-red-300 transition-colors shrink-0 group"
                   aria-label={`Remover ${product.nome}`}
                 >
-                  ×
+                  <span className="w-7 h-7 flex items-center justify-center rounded-full bg-red-500/20 group-hover:bg-red-500/40 text-lg leading-none">×</span>
                 </button>
               </div>
             ))}
@@ -695,7 +696,7 @@ export default function NovaVenda() {
         </div>
 
         {/* Botões */}
-        <div className="shrink-0 bg-cp-surface border-t border-cp-border px-4 pt-4 pb-6 flex gap-3">
+        <div className="shrink-0 bg-cp-surface border-t border-cp-border px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] flex gap-3">
           <button
             onClick={backToSearch}
             disabled={confirming}
@@ -740,7 +741,8 @@ export default function NovaVenda() {
         <header className="shrink-0 bg-cp-surface border-b border-cp-border px-5 py-3.5 flex items-center gap-3">
           <Link
             href="/dashboard"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-cp-elevated transition text-lg"
+            aria-label="Voltar"
+            className="w-11 h-11 -ml-2 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-cp-elevated transition text-xl"
           >
             ←
           </Link>
@@ -783,7 +785,8 @@ export default function NovaVenda() {
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-cp-elevated transition text-sm"
+                  aria-label="Limpar busca"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full text-gray-500 hover:text-white hover:bg-cp-elevated transition text-base"
                 >
                   ✕
                 </button>
@@ -808,7 +811,7 @@ export default function NovaVenda() {
                         👤
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold text-base leading-tight truncate">
+                        <p className="text-white font-semibold text-base leading-tight break-words">
                           {a.nome}
                         </p>
                         <p className="text-gray-500 text-sm mt-0.5">{a.turma}</p>
@@ -853,7 +856,7 @@ export default function NovaVenda() {
                   <span>{listening ? "Ouvindo... fale agora" : "Falar pedido completo"}</span>
                 </button>
 
-                <p className="text-center text-gray-600 text-xs mt-3">
+                <p className="text-center text-gray-500 text-sm mt-3">
                   Ex: &quot;Gustavo Silva, um X-Burguer e uma Coca Cola&quot;
                 </p>
               </>
@@ -892,7 +895,8 @@ export default function NovaVenda() {
       <header className="shrink-0 bg-cp-surface border-b border-cp-border px-4 py-3 flex items-center gap-3">
         <button
           onClick={backToSearch}
-          className="w-9 h-9 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-cp-elevated transition text-lg shrink-0"
+          aria-label="Voltar"
+          className="w-11 h-11 -ml-1 flex items-center justify-center rounded-xl text-gray-400 hover:text-white hover:bg-cp-elevated transition text-xl shrink-0"
         >
           ←
         </button>
@@ -905,10 +909,10 @@ export default function NovaVenda() {
             👤
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm truncate leading-tight">
+            <p className="text-white font-semibold text-sm break-words leading-tight">
               {selectedAluno!.nome}
             </p>
-            <p className="text-gray-500 text-xs">{selectedAluno!.turma}</p>
+            <p className="text-gray-500 text-sm">{selectedAluno!.turma}</p>
           </div>
           <span
             className={`text-sm font-bold shrink-0 ${balanceColor(selectedAluno!.saldo)}`}
@@ -918,7 +922,7 @@ export default function NovaVenda() {
         </button>
 
         {totalItens > 0 && (
-          <div className="w-9 h-9 flex items-center justify-center bg-orange-500 rounded-xl shrink-0 shadow-lg shadow-orange-500/30">
+          <div className="w-11 h-11 flex items-center justify-center bg-orange-500 rounded-xl shrink-0 shadow-lg shadow-orange-500/30">
             <span className="text-white font-bold text-sm">{totalItens}</span>
           </div>
         )}
@@ -927,10 +931,11 @@ export default function NovaVenda() {
       {/* Aviso de produtos não reconhecidos pelo comando de voz */}
       {voiceWarning && (
         <div className="shrink-0 mx-4 mt-2 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2.5 flex items-center justify-between gap-3">
-          <p className="text-xs text-amber-400 leading-snug">{voiceWarning}</p>
+          <p className="text-sm text-amber-400 leading-snug">{voiceWarning}</p>
           <button
             onClick={() => setVoiceWarning(null)}
-            className="shrink-0 text-amber-500 hover:text-amber-300 transition text-base leading-none"
+            aria-label="Fechar aviso"
+            className="shrink-0 -mr-3 w-11 h-11 flex items-center justify-center text-amber-500 hover:text-amber-300 transition text-base leading-none"
           >
             ✕
           </button>
@@ -947,7 +952,7 @@ export default function NovaVenda() {
               <button
                 key={tab.value}
                 onClick={() => setCategoriaSelecionada(tab.value)}
-                className={`shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                className={`shrink-0 min-h-[44px] flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
                   active
                     ? "bg-orange-500/15 border-orange-500/50 text-orange-400"
                     : "bg-cp-elevated border-cp-border text-gray-400 hover:text-gray-200 hover:border-cp-muted"
@@ -997,7 +1002,7 @@ export default function NovaVenda() {
                     className="relative flex-1 flex flex-col text-left active:scale-95 transition-transform"
                   >
                     {emCardapio && (
-                      <span className="absolute top-2 right-2 z-10 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/90 text-white shadow">
+                      <span className="absolute top-2 right-2 z-10 text-xs font-semibold px-1.5 py-0.5 rounded-full bg-orange-500/90 text-white shadow">
                         Hoje
                       </span>
                     )}
@@ -1028,7 +1033,7 @@ export default function NovaVenda() {
                       <div className="flex items-center bg-cp-elevated border border-cp-border rounded-xl overflow-hidden">
                         <button
                           onClick={() => removeProduct(p.id)}
-                          className="flex-1 h-10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-cp-muted transition text-xl font-bold"
+                          className="flex-1 h-11 flex items-center justify-center text-gray-400 hover:text-white hover:bg-cp-muted transition text-xl font-bold"
                         >
                           −
                         </button>
@@ -1037,7 +1042,7 @@ export default function NovaVenda() {
                         </span>
                         <button
                           onClick={() => addProduct(p.id)}
-                          className="flex-1 h-10 flex items-center justify-center text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 transition text-xl font-bold"
+                          className="flex-1 h-11 flex items-center justify-center text-orange-400 hover:text-orange-300 hover:bg-orange-500/10 transition text-xl font-bold"
                         >
                           +
                         </button>
@@ -1045,7 +1050,7 @@ export default function NovaVenda() {
                     ) : (
                       <button
                         onClick={() => addProduct(p.id)}
-                        className="w-full h-10 rounded-xl bg-cp-elevated hover:bg-cp-muted active:bg-orange-500/10 text-gray-500 hover:text-orange-400 transition font-bold text-2xl"
+                        className="w-full h-11 rounded-xl bg-cp-elevated hover:bg-cp-muted active:bg-orange-500/10 text-gray-500 hover:text-orange-400 transition font-bold text-2xl"
                       >
                         +
                       </button>
@@ -1059,7 +1064,7 @@ export default function NovaVenda() {
       </div>
 
       {/* Barra inferior fixa: total + confirmação */}
-      <div className="shrink-0 bg-cp-surface border-t border-cp-border px-4 pt-4 pb-6 space-y-3">
+      <div className="shrink-0 bg-cp-surface border-t border-cp-border px-4 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-3">
 
         {/* Saldo após venda */}
         {cartItems.length > 0 && saldoApos !== null && (
@@ -1079,7 +1084,7 @@ export default function NovaVenda() {
 
         {/* Erro */}
         {saleError && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5 text-xs text-red-400 text-center">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-2.5 text-sm text-red-400 text-center">
             {saleError}
           </div>
         )}
@@ -1087,7 +1092,7 @@ export default function NovaVenda() {
         {/* Total + botão confirmar */}
         <div className="flex items-center gap-4">
           <div className="shrink-0">
-            <p className="text-xs text-gray-500">Total</p>
+            <p className="text-sm text-gray-500">Total</p>
             <p className="text-2xl font-bold text-white leading-tight">{fmt(total)}</p>
           </div>
 
