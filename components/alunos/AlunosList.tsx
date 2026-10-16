@@ -4,6 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { addResponsavel, removeResponsavel, registrarPagamentoFiado, registrarHistoricoCredito } from "@/app/alunos/actions";
+import FichaAlunoModal from "@/components/alunos/FichaAlunoModal";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -83,6 +84,7 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
   const [formError,    setFormError]    = useState<string | null>(null);
   const [editingAluno,  setEditingAluno]  = useState<AlunoComConta | null>(null);
   const [deletingAluno, setDeletingAluno] = useState<AlunoComConta | null>(null);
+  const [fichaAluno, setFichaAluno] = useState<AlunoComConta | null>(null);
   const [deleting,      setDeleting]      = useState(false);
   const [deleteError,   setDeleteError]   = useState<string | null>(null);
   const [togglingPaga,    setTogglingPaga]    = useState<string | null>(null);
@@ -405,6 +407,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
 
   return (
     <>
+      {fichaAluno && (
+        <FichaAlunoModal
+          aluno={{ ...fichaAluno, saldo: getSaldo(fichaAluno) }}
+          onClose={() => setFichaAluno(null)}
+        />
+      )}
+
       {/* Toolbar */}
       <div className="flex items-center gap-3 mb-6">
         <input
@@ -458,7 +467,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <p className="font-semibold text-white break-words">{aluno.nome}</p>
+                      <button
+                        onClick={() => setFichaAluno(aluno)}
+                        title="Abrir ficha do aluno"
+                        className="font-semibold text-white break-words text-left hover:text-orange-400 transition-colors"
+                      >
+                        {aluno.nome}
+                      </button>
                       {!aluno.ativo && (
                         <span className="text-xs px-2 py-0.5 rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/20 shrink-0">Inativo</span>
                       )}
@@ -586,7 +601,13 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
                     <tr key={aluno.id} className={`bg-cp-surface hover:bg-cp-elevated transition-colors group ${!aluno.ativo ? "opacity-60" : ""}`}>
                       <td className="px-4 py-3.5 text-sm font-medium text-white whitespace-nowrap">
                         <div className="flex items-center gap-2">
-                          {aluno.nome}
+                          <button
+                            onClick={() => setFichaAluno(aluno)}
+                            title="Abrir ficha do aluno"
+                            className="hover:text-orange-400 transition-colors"
+                          >
+                            {aluno.nome}
+                          </button>
                           {!aluno.ativo && (
                             <span className="text-xs px-1.5 py-0.5 rounded-full border bg-gray-500/10 text-gray-400 border-gray-500/20">Inativo</span>
                           )}

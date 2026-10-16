@@ -102,7 +102,7 @@ export default function ResumaoSemana({
   );
 }
 
-function ResumaoModal({
+export function ResumaoModal({
   devedores,
   alunosSemanais,
   ciclosSemanaisPorAluno,

@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { salvarHistoricoPagamento } from "@/lib/pagamentos";
+import { carregarDadosCobrancas, type DadosCobrancas } from "@/lib/cobrancasDados";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
@@ -201,4 +202,10 @@ export async function quitarTudo({
   revalidatePath("/alunos");
   revalidatePath("/dashboard");
   return {};
+}
+
+// Dados do Resumão da Semana sob demanda — o Dashboard só carrega os 90 dias
+// de pedidos quando o modal é aberto.
+export async function buscarDadosResumao(): Promise<DadosCobrancas> {
+  return carregarDadosCobrancas();
 }

@@ -5,21 +5,14 @@ import CardapioDoDia from "@/components/dashboard/CardapioDoDia";
 import AlunoListSection from "@/components/dashboard/AlunoListSection";
 import CobrancasHojeSection from "@/components/dashboard/CobrancasHojeSection";
 import AlertasSaldoBaixoSection, { type AlunoAlertaSaldo } from "@/components/dashboard/AlertasSaldoBaixoSection";
-import Link from "next/link";
+import AcoesRapidas from "@/components/dashboard/AcoesRapidas";
+import type { AlunoFicha } from "@/components/alunos/FichaAlunoModal";
 
 // ── constantes ────────────────────────────────────────────────────────────────
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
-
-type Metric = {
-  label: string;
-  value: string;
-  sub: string;
-  trend: "up" | "down" | "neutral";
-  icon: string;
-};
 
 type AlunoSaldo = {
   nome: string;
@@ -78,27 +71,31 @@ function calcTrend(
 
 // ── sub-componentes ───────────────────────────────────────────────────────────
 
-function MetricCard({ metric }: { metric: Metric }) {
+function VendasHojeCard({
+  total, pedidos, ticket, comparativo, trend,
+}: {
+  total: number;
+  pedidos: number;
+  ticket: number;
+  comparativo: string;
+  trend: "up" | "down" | "neutral";
+}) {
   return (
-    <div className="bg-cp-surface border border-cp-border rounded-2xl p-5 flex flex-col gap-3 hover:border-cp-muted transition">
-      <div className="flex items-center justify-between">
-        <span className="text-2xl">{metric.icon}</span>
-        {metric.trend === "up" && (
-          <span className="text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
-            ↑ alta
-          </span>
+    <div className="bg-cp-surface border border-cp-border rounded-2xl p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-base text-gray-400">💰 Vendas hoje</p>
+        {trend === "up" && (
+          <span className="text-sm font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">↑ alta</span>
         )}
-        {metric.trend === "down" && (
-          <span className="text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">
-            ↓ queda
-          </span>
+        {trend === "down" && (
+          <span className="text-sm font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">↓ queda</span>
         )}
       </div>
-      <div>
-        <p className="text-gray-400 text-sm">{metric.label}</p>
-        <p className="text-2xl font-bold text-white mt-0.5 tabular-nums">{metric.value}</p>
-      </div>
-      <p className="text-xs text-gray-500 leading-snug">{metric.sub}</p>
+      <p className="text-4xl sm:text-5xl font-bold text-white mt-2 tabular-nums">{fmt(total)}</p>
+      <p className="text-sm text-gray-500 mt-2">
+        {pedidos} pedido{pedidos !== 1 ? "s" : ""}
+        {pedidos > 0 ? ` · ticket médio ${fmt(ticket)}` : ""} · {comparativo}
+      </p>
     </div>
   );
 }
@@ -109,16 +106,10 @@ export default async function DashboardPage() {
   const supabase      = createClient();
   const supabaseAdmin = createAdminClient();
 
-  // Limites de data em UTC
-  const now          = new Date();
-  const todayUTC     = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const yesterdayUTC = new Date(todayUTC);
-  yesterdayUTC.setUTCDate(yesterdayUTC.getUTCDate() - 1);
-  const todayISO     = todayUTC.toISOString();
-  const yesterdayISO = yesterdayUTC.toISOString();
-
   const hoje = todayBR();
   const { start: hojeStart, end: hojeEnd } = dateRangeBR(hoje);
+  // Ontem em BRT: o dia BR anterior começa 24h antes de hojeStart
+  const ontemStart = new Date(new Date(hojeStart).getTime() - 24 * 60 * 60 * 1000).toISOString();
   const diaHojeMes = parseInt(hoje.split("-")[2], 10);
 
   // Todas as queries em paralelo
@@ -127,7 +118,6 @@ export default async function DashboardPage() {
     { data: vendasHoje },
     { data: vendasOntem },
     { count: nHoje },
-    { count: nOntem },
     { data: rawSaldoBaixo },
     { data: rawCobrancas },
     { data: rawCobrancasHoje },
@@ -135,22 +125,22 @@ export default async function DashboardPage() {
     { data: produtosAtivos },
     { data: pedidosHojeParaCardapio },
     { data: rawAlertasSaldo, error: alertasError },
+    { data: rawAlunos },
   ] = await Promise.all([
     supabase.auth.getUser(),
 
-    // Totais de vendas (para métricas 1 e 4) — só pedidos confirmados, excluindo cancelados
+    // Totais de vendas do dia em Brasília (meia-noite BRT) — só pedidos
+    // confirmados, excluindo cancelados
     supabase.from("pedidos").select("total")
-      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("criado_em", hojeStart).lt("criado_em", hojeEnd),
     supabase.from("pedidos").select("total")
-      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", yesterdayISO).lt("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("criado_em", ontemStart).lt("criado_em", hojeStart),
 
-    // Contagem de pedidos (métrica 2) — mesma regra: exclui cancelados
+    // Contagem de pedidos de hoje — mesma regra: exclui cancelados
     supabase.from("pedidos").select("id", { count: "exact", head: true })
-      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", todayISO),
-    supabase.from("pedidos").select("id", { count: "exact", head: true })
-      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("created_at", yesterdayISO).lt("created_at", todayISO),
+      .eq("cantina_id", CANTINA_ID).eq("status", "confirmado").gte("criado_em", hojeStart).lt("criado_em", hojeEnd),
 
-    // Alunos com saldo baixo ≤ R$ 10 (métrica 3 + seção de alertas).
+    // Alunos com saldo baixo ≤ R$ 10 (seção de alertas).
     // Só crédito pré-pago: no fiado, saldo R$ 0,00 é conta em dia.
     supabase.from("contas").select("saldo, alunos(nome, turma)")
       .eq("cantina_id", CANTINA_ID).eq("tipo", "credito").lte("saldo", 10).order("saldo").limit(50),
@@ -194,17 +184,29 @@ export default async function DashboardPage() {
       .eq("cantina_id", CANTINA_ID).eq("ativo", true).eq("tipo_conta", "credito")
       .not("limite_alerta_saldo", "is", null)
       .lt("saldo", 0),
+
+    // Todos os alunos ativos, para a busca que abre a Ficha do Aluno
+    supabase.from("alunos")
+      .select("id, nome, turma, saldo, tipo_conta, telefone_responsavel")
+      .eq("cantina_id", CANTINA_ID).eq("ativo", true).order("nome"),
   ]);
 
   // ── processar dados ───────────────────────────────────────────────────────────
 
   const totalHoje  = (vendasHoje  ?? []).reduce((s, p: any) => s + (p.total ?? 0), 0);
   const totalOntem = (vendasOntem ?? []).reduce((s, p: any) => s + (p.total ?? 0), 0);
-  const pedHoje    = nHoje  ?? 0;
-  const pedOntem   = nOntem ?? 0;
+  const pedHoje    = nHoje ?? 0;
+  const ticketHoje = pedHoje > 0 ? totalHoje / pedHoje : 0;
+  const tVendas    = calcTrend(totalHoje, totalOntem, fmt, "sem vendas ainda hoje");
 
-  const ticketHoje  = pedHoje  > 0 ? totalHoje  / pedHoje  : 0;
-  const ticketOntem = pedOntem > 0 ? totalOntem / pedOntem : 0;
+  const alunosBusca: AlunoFicha[] = (rawAlunos ?? []).map((a: any) => ({
+    id:                   a.id,
+    nome:                 a.nome,
+    turma:                a.turma ?? null,
+    saldo:                Number(a.saldo ?? 0),
+    tipo_conta:           a.tipo_conta ?? null,
+    telefone_responsavel: a.telefone_responsavel ?? null,
+  }));
 
   const saldoBaixo: AlunoSaldo[] = (rawSaldoBaixo ?? []).map((c: any) => ({
     nome:  c.alunos?.nome  ?? "—",
@@ -282,122 +284,84 @@ export default async function DashboardPage() {
 
   console.log("[dashboard][cardapio] cardapioAtual (o que vai pro componente) =", JSON.stringify(cardapioAtual));
 
-  // ── métricas ──────────────────────────────────────────────────────────────────
-
-  const tVendas  = calcTrend(totalHoje,  totalOntem,  fmt,               "sem vendas ainda hoje");
-  const tPedidos = calcTrend(pedHoje,    pedOntem,    String,            "sem pedidos ainda hoje");
-  const tTicket  = calcTrend(ticketHoje, ticketOntem, fmt,               "sem vendas hoje");
-
-  const metrics: Metric[] = [
-    {
-      label: "Vendas hoje",
-      value: fmt(totalHoje),
-      sub:   tVendas.sub,
-      trend: tVendas.trend,
-      icon:  "💰",
-    },
-    {
-      label: "Pedidos hoje",
-      value: String(pedHoje),
-      sub:   tPedidos.sub,
-      trend: tPedidos.trend,
-      icon:  "🛒",
-    },
-    {
-      label: "Saldo baixo",
-      value: String(saldoBaixo.length),
-      sub:   saldoBaixo.length === 0
-        ? "todos com saldo adequado"
-        : `aluno${saldoBaixo.length !== 1 ? "s" : ""} com saldo ≤ R$ 10`,
-      trend: saldoBaixo.length === 0 ? "neutral" : saldoBaixo.length > 5 ? "down" : "neutral",
-      icon:  "⚠️",
-    },
-    {
-      label: "Ticket médio",
-      value: fmt(ticketHoje),
-      sub:   tTicket.sub,
-      trend: tTicket.trend,
-      icon:  "🎯",
-    },
-  ];
-
   // ── render ────────────────────────────────────────────────────────────────────
 
   const firstName = user?.email?.split("@")[0] ?? "usuário";
-  const hour      = new Date().getHours();
+  // Hora em Brasília: o servidor roda em UTC
+  const hour      = new Date(Date.now() - 3 * 60 * 60 * 1000).getUTCHours();
   const greeting  = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   return (
     <AppLayout>
-      <div className="space-y-10">
+      <div className="max-w-2xl mx-auto space-y-6">
 
-        {/* Saudação + Nova Venda */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-white capitalize">
-              {greeting}, {firstName}!
-            </h1>
-            <p className="text-gray-500 text-sm mt-0.5 capitalize">{formatDate()}</p>
-          </div>
-          <Link
-            href="/vendas/nova"
-            className="inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-95 text-white font-semibold px-6 py-3 rounded-xl shadow-lg shadow-orange-500/25 transition-all"
-          >
-            <span className="text-lg leading-none">+</span>
-            Nova Venda
-          </Link>
+        {/* Saudação */}
+        <div>
+          <h1 className="text-2xl font-bold text-white capitalize">
+            {greeting}, {firstName}!
+          </h1>
+          <p className="text-gray-500 text-base mt-0.5 capitalize">{formatDate()}</p>
         </div>
 
-        {/* Cardápio do dia */}
-        <CardapioDoDia
-          hoje={hoje}
-          produtosDisponiveis={(produtosAtivos as any) ?? []}
-          cardapioAtual={cardapioAtual}
+        {/* Nova venda · Resumão da semana · Buscar aluno */}
+        <AcoesRapidas alunos={alunosBusca} />
+
+        {/* Vendas hoje */}
+        <VendasHojeCard
+          total={totalHoje}
+          pedidos={pedHoje}
+          ticket={ticketHoje}
+          comparativo={tVendas.sub}
+          trend={tVendas.trend}
         />
 
-        {/* Métricas — 2 colunas em mobile, 4 em desktop */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-4">
-            Resumo do dia
+        {/* ── Itens secundários, mais discretos ─────────────── */}
+        <div className="pt-6 border-t border-cp-border space-y-10">
+          <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-widest">
+            Mais informações
           </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {metrics.map((m) => <MetricCard key={m.label} metric={m} />)}
-          </div>
-        </section>
 
-        {/* Cobranças mensais com dia de cobrança hoje */}
-        <CobrancasHojeSection alunos={cobrancasHoje} />
+          {/* Cobranças mensais com dia de cobrança hoje */}
+          <CobrancasHojeSection alunos={cobrancasHoje} />
 
-        {/* Alunos abaixo do limite de alerta de saldo configurado no cadastro */}
-        <AlertasSaldoBaixoSection alunos={alertasSaldo} />
+          {/* Alunos abaixo do limite de alerta de saldo configurado no cadastro */}
+          <AlertasSaldoBaixoSection alunos={alertasSaldo} />
 
-        {/* Alertas de saldo baixo */}
-        <AlunoListSection
-          title="Saldo baixo"
-          alunos={saldoBaixo}
-          variant="saldo"
-          keyPrefix="saldo"
-          badgeCls="text-amber-400 bg-amber-400/10 border-amber-400/20"
-        />
+          {/* Cardápio do dia */}
+          <CardapioDoDia
+            hoje={hoje}
+            produtosDisponiveis={(produtosAtivos as any) ?? []}
+            cardapioAtual={cardapioAtual}
+          />
 
-        {/* Cobranças pendentes (fiado com saldo ≤ 0) */}
-        <AlunoListSection
-          title="Cobranças pendentes"
-          alunos={cobrancas}
-          variant="cobranca"
-          keyPrefix="cobranca"
-          badgeCls="text-red-400 bg-red-400/10 border-red-400/20"
-          footer={
-            cobrancas.length > 0 ? (
-              <div className="mt-3 flex items-center justify-between px-4 py-3 rounded-xl bg-red-500/5 border border-red-500/15">
-                <span className="text-xs text-gray-500">Total em aberto</span>
-                <span className="text-sm font-bold text-red-400 tabular-nums">
-                  {fmt(Math.abs(cobrancas.reduce((s, a) => s + a.saldo, 0)))}
-                </span>
-              </div>
-            ) : null
-          }
-        />
+          {/* Alertas de saldo baixo */}
+          <AlunoListSection
+            title="Saldo baixo"
+            alunos={saldoBaixo}
+            variant="saldo"
+            keyPrefix="saldo"
+            badgeCls="text-amber-400 bg-amber-400/10 border-amber-400/20"
+          />
+
+          {/* Cobranças pendentes (fiado com saldo ≤ 0) */}
+          <AlunoListSection
+            title="Cobranças pendentes"
+            alunos={cobrancas}
+            variant="cobranca"
+            keyPrefix="cobranca"
+            badgeCls="text-red-400 bg-red-400/10 border-red-400/20"
+            footer={
+              cobrancas.length > 0 ? (
+                <div className="mt-3 flex items-center justify-between px-4 py-3 rounded-xl bg-red-500/5 border border-red-500/15">
+                  <span className="text-xs text-gray-500">Total em aberto</span>
+                  <span className="text-sm font-bold text-red-400 tabular-nums">
+                    {fmt(Math.abs(cobrancas.reduce((s, a) => s + a.saldo, 0)))}
+                  </span>
+                </div>
+              ) : null
+            }
+          />
+        </div>
 
       </div>
     </AppLayout>

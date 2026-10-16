@@ -126,7 +126,7 @@ function resumoItens(itens: { nome_produto: string; quantidade: number }[]): str
     .join(", ");
 }
 
-function montarExtrato(
+export function montarExtrato(
   nomeAluno: string,
   periodoLabel: string,
   pedidos: PedidoExtrato[]
