@@ -1,6 +1,6 @@
 "use server";
 
-// Central de Voz do Dashboard. Antes de usar, execute no SQL Editor do Supabase:
+// Modo Na Correria do Dashboard. Antes de usar, execute no SQL Editor do Supabase:
 // ver migration_central_voz.sql
 //
 // As ações em si reaproveitam as server actions existentes (registrarPagamentoFiado,
@@ -16,7 +16,7 @@ import { carregarCiclosPendentes } from "@/lib/cobrancasDados";
 import type { TipoAcaoVoz, IntencaoVoz, FormaPagamento } from "@/lib/centralVoz";
 
 const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-const ORIGEM = "(via Central de Voz)";
+const ORIGEM = "(via Modo Na Correria)";
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 const brl = (v: number) => `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -246,7 +246,7 @@ export async function executarAcaoVoz({
   revalidatePath("/cobrancas");
 
   if (logError || !acao) {
-    console.error("[central-voz] ação feita, mas falhou o registro:", logError?.message);
+    console.error("[na-correria] ação feita, mas falhou o registro:", logError?.message);
     return {
       saldoDepois: depois.saldo ?? undefined,
       aviso: "A ação foi feita, mas não foi possível registrá-la para desfazer. " +
@@ -311,7 +311,7 @@ export async function listarAcoesVoz(): Promise<{ acoes: AcaoVozRecente[]; error
     .order("criado_em", { ascending: false })
     .limit(10);
   if (error) {
-    console.error("[central-voz] falha ao listar ações:", error.message);
+    console.error("[na-correria] falha ao listar ações:", error.message);
     return { acoes: [], error: "Não foi possível carregar as últimas ações." };
   }
 

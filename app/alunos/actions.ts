@@ -277,7 +277,7 @@ export async function registrarPagamentoFiado({
 }
 
 // Recarga de crédito: soma o valor ao saldo atual (lido do banco) e grava no
-// histórico. Usada pela tela de Alunos e pela Central de Voz.
+// histórico. Usada pela tela de Alunos e pelo Modo Na Correria.
 export async function adicionarCredito({
   alunoId,
   valor,

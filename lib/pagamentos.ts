@@ -6,7 +6,7 @@ const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 // Responsável. Insere já como "confirmado": o trigger trg_creditar_pagamento
 // só roda em UPDATE, então o saldo — que quem chama já atualizou — não é
 // creditado de novo. Falha aqui não desfaz o pagamento; só é logada.
-// Retorna o id do registro (null se falhou) — a Central de Voz guarda esse id
+// Retorna o id do registro (null se falhou) — o Modo Na Correria guarda esse id
 // para marcar o pagamento como estornado ao desfazer.
 export async function salvarHistoricoPagamento({
   alunoId,

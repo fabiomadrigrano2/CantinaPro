@@ -1,4 +1,4 @@
-// Interpretação dos comandos da Central de Voz do Dashboard:
+// Interpretação dos comandos do Modo Na Correria do Dashboard:
 //   "Abater 150 reais da conta da Marcela"
 //   "Adicionar 100 reais de crédito ao Henrique"
 //   "Quitar a conta do Breno"

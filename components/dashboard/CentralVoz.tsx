@@ -198,7 +198,7 @@ export default function CentralVoz({ alunos }: { alunos: AlunoVoz[] }) {
       falhou = true;
       const mensagem =
         e.error === "no-speech" ? "Não ouvi nada. Toque no microfone e fale de novo." :
-        e.error === "not-allowed" ? "Permita o uso do microfone no navegador para usar a Central de Voz." :
+        e.error === "not-allowed" ? "Permita o uso do microfone no navegador para usar o Modo Na Correria." :
         "Não foi possível capturar o áudio. Tente novamente.";
       setEtapa({ tipo: "erro", texto: null, mensagem });
     };
@@ -277,7 +277,7 @@ export default function CentralVoz({ alunos }: { alunos: AlunoVoz[] }) {
   return (
     <section className="bg-cp-surface border border-orange-500/25 rounded-2xl p-5 space-y-5">
       <div className="text-center">
-        <h2 className="text-lg font-semibold text-white">🎙️ Central de Voz</h2>
+        <h2 className="text-lg font-semibold text-white">🎙️ Modo Na Correria</h2>
         <p className="text-sm text-gray-500 mt-0.5">Abater, adicionar crédito, quitar ou consultar saldo</p>
       </div>
 
@@ -295,6 +295,7 @@ export default function CentralVoz({ alunos }: { alunos: AlunoVoz[] }) {
         >
           🎤
         </button>
+        <p className="text-lg font-semibold text-white text-center">Fale e o CantinaPro faz.</p>
         <p className="text-base text-orange-300 min-h-[1.5rem] text-center break-words max-w-full">
           {ouvindo
             ? (etapa.parcial ? `“${etapa.parcial}”` : "Ouvindo... pode falar")
@@ -515,7 +516,7 @@ export default function CentralVoz({ alunos }: { alunos: AlunoVoz[] }) {
       {/* Últimas ações */}
       <div>
         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-widest mb-2">
-          Últimas ações da Central de Voz
+          Últimas ações do Modo Na Correria
         </h3>
         {erroLista ? (
           <p className="text-sm text-gray-500">{erroLista}</p>

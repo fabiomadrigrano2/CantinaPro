@@ -307,7 +307,7 @@ export default async function DashboardPage() {
         {/* Nova venda · Resumão da semana · Buscar aluno */}
         <AcoesRapidas alunos={alunosBusca} />
 
-        {/* Central de Voz: abater, crédito, quitar e consultar saldo */}
+        {/* Modo Na Correria: abater, crédito, quitar e consultar saldo */}
         <CentralVoz alunos={alunosBusca} />
 
         {/* Vendas hoje */}
