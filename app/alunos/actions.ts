@@ -148,7 +148,7 @@ export async function registrarPagamentoFiado({
   valor: number;
   formaPagamento: string;
   observacao?: string | null;
-}): Promise<{ error?: string }> {
+}): Promise<{ error?: string; pagamentoId?: string | null }> {
   const supabase = createAdminClient();
 
   const [{ data: aluno, error: alunoError }, { data: conta, error: contaError }] =
@@ -263,7 +263,7 @@ export async function registrarPagamentoFiado({
   const obs =
     observacao?.trim() ||
     `Pagamento recebido - R$ ${valor.toFixed(2).replace(".", ",")}`;
-  await salvarHistoricoPagamento({
+  const pagamentoId = await salvarHistoricoPagamento({
     alunoId,
     valor,
     formaPagamento,
@@ -273,10 +273,12 @@ export async function registrarPagamentoFiado({
 
   revalidatePath("/alunos");
   revalidatePath("/cobrancas");
-  return {};
+  return { pagamentoId };
 }
 
-export async function registrarHistoricoCredito({
+// Recarga de crédito: soma o valor ao saldo atual (lido do banco) e grava no
+// histórico. Usada pela tela de Alunos e pela Central de Voz.
+export async function adicionarCredito({
   alunoId,
   valor,
   formaPagamento,
@@ -286,8 +288,20 @@ export async function registrarHistoricoCredito({
   valor: number;
   formaPagamento: string;
   observacao?: string | null;
-}): Promise<void> {
-  await salvarHistoricoPagamento({
+}): Promise<{ error?: string; pagamentoId?: string | null }> {
+  if (!(valor > 0)) return { error: "Informe um valor válido." };
+  const supabase = createAdminClient();
+
+  const { data: aluno, error: alunoError } = await supabase
+    .from("alunos").select("saldo").eq("id", alunoId).single();
+  if (alunoError || !aluno) return { error: "Aluno não encontrado" };
+
+  const novoSaldo = Math.round((Number(aluno.saldo ?? 0) + valor) * 100) / 100;
+  const { error } = await supabase.from("alunos").update({ saldo: novoSaldo }).eq("id", alunoId);
+  if (error) return { error: error.message };
+  await supabase.from("contas").update({ saldo: novoSaldo }).eq("aluno_id", alunoId);
+
+  const pagamentoId = await salvarHistoricoPagamento({
     alunoId,
     valor,
     formaPagamento,
@@ -296,4 +310,7 @@ export async function registrarHistoricoCredito({
       observacao?.trim() ||
       `Recarga de crédito - R$ ${valor.toFixed(2).replace(".", ",")}`,
   });
+
+  revalidatePath("/alunos");
+  return { pagamentoId };
 }

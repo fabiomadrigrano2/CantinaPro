@@ -140,11 +140,13 @@ export async function quitarTudo({
   alunoId,
   ciclos,
   formaPagamento,
+  observacao,
 }: {
   alunoId: string;
   ciclos: Array<{ semanaInicio: string; semanaFim: string; total: number }>;
   formaPagamento: string;
-}): Promise<{ error?: string }> {
+  observacao?: string;
+}): Promise<{ error?: string; pagamentoId?: string | null }> {
   const supabase = createAdminClient();
 
   const [{ data: aluno, error: alunoError }, { data: conta }] = await Promise.all([
@@ -190,18 +192,20 @@ export async function quitarTudo({
       .eq("aluno_id", alunoId);
   }
 
-  await salvarHistoricoPagamento({
+  const pagamentoId = await salvarHistoricoPagamento({
     alunoId,
     valor: valorQuitado,
     formaPagamento,
     tipo: "fiado",
-    descricao: `Quitação total - R$ ${valorQuitado.toFixed(2).replace(".", ",")}`,
+    descricao:
+      `Quitação total - R$ ${valorQuitado.toFixed(2).replace(".", ",")}` +
+      (observacao ? ` ${observacao}` : ""),
   });
 
   revalidatePath("/cobrancas");
   revalidatePath("/alunos");
   revalidatePath("/dashboard");
-  return {};
+  return { pagamentoId };
 }
 
 // Dados do Resumão da Semana sob demanda — o Dashboard só carrega os 90 dias

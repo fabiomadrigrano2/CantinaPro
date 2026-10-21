@@ -156,6 +156,25 @@ export async function carregarDadosCobrancas(): Promise<DadosCobrancas> {
   // Segunda 00:00 em Brasília = 03:00 UTC
   const consumoSemanaPromise = somarPedidosDesde(supabase, CANTINA_ID, `${semanaAtualStr}T03:00:00.000Z`);
 
+  const ciclosSemanaisPorAluno = await carregarCiclosPendentes(alunoIds, supabase);
+
+  return {
+    devedores: (devedores as any) ?? [],
+    semCredito: (semCredito as any) ?? [],
+    alunosSemanais: (alunosSemanais as any) ?? [],
+    ciclosSemanaisPorAluno,
+    consumoSemana: await consumoSemanaPromise,
+  };
+}
+
+// Semanas com consumo (90 dias) ainda não cobradas nem pagas, por aluno — o
+// que a tela de Cobranças manda para quitarTudo(). Também usado pela Central
+// de Voz para quitar a conta de um aluno.
+export async function carregarCiclosPendentes(
+  alunoIds: string[],
+  supabase: ReturnType<typeof createClient> = createClient()
+): Promise<Record<string, CicloSemana[]>> {
+  const semanaAtualStr = getWeekStartBR(new Date());
   const ciclosSemanaisPorAluno: Record<string, CicloSemana[]> = {};
 
   if (alunoIds.length > 0) {
@@ -218,11 +237,5 @@ export async function carregarDadosCobrancas(): Promise<DadosCobrancas> {
     }
   }
 
-  return {
-    devedores: (devedores as any) ?? [],
-    semCredito: (semCredito as any) ?? [],
-    alunosSemanais: (alunosSemanais as any) ?? [],
-    ciclosSemanaisPorAluno,
-    consumoSemana: await consumoSemanaPromise,
-  };
+  return ciclosSemanaisPorAluno;
 }

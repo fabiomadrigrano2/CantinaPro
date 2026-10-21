@@ -6,6 +6,7 @@ import AlunoListSection from "@/components/dashboard/AlunoListSection";
 import CobrancasHojeSection from "@/components/dashboard/CobrancasHojeSection";
 import AlertasSaldoBaixoSection, { type AlunoAlertaSaldo } from "@/components/dashboard/AlertasSaldoBaixoSection";
 import AcoesRapidas from "@/components/dashboard/AcoesRapidas";
+import CentralVoz from "@/components/dashboard/CentralVoz";
 import type { AlunoFicha } from "@/components/alunos/FichaAlunoModal";
 
 // ── constantes ────────────────────────────────────────────────────────────────
@@ -305,6 +306,9 @@ export default async function DashboardPage() {
 
         {/* Nova venda · Resumão da semana · Buscar aluno */}
         <AcoesRapidas alunos={alunosBusca} />
+
+        {/* Central de Voz: abater, crédito, quitar e consultar saldo */}
+        <CentralVoz alunos={alunosBusca} />
 
         {/* Vendas hoje */}
         <VendasHojeCard

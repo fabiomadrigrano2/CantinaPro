@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { addResponsavel, removeResponsavel, registrarPagamentoFiado, registrarHistoricoCredito } from "@/app/alunos/actions";
+import { addResponsavel, removeResponsavel, registrarPagamentoFiado, adicionarCredito } from "@/app/alunos/actions";
 import FichaAlunoModal from "@/components/alunos/FichaAlunoModal";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
@@ -248,16 +248,12 @@ export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComC
     if (isNaN(valor) || valor <= 0) { setPagamentoError("Informe um valor válido."); return; }
     setPagamentoSaving(true);
     setPagamentoError(null);
-    const supabase = createClient();
-    const novoSaldo = creditoAluno.saldo + valor;
-    const { error } = await supabase.from("alunos").update({ saldo: novoSaldo }).eq("id", creditoAluno.id);
-    if (error) { setPagamentoError(error.message); setPagamentoSaving(false); return; }
-    await supabase.from("contas").update({ saldo: novoSaldo }).eq("aluno_id", creditoAluno.id);
-    await registrarHistoricoCredito({
+    const result = await adicionarCredito({
       alunoId: creditoAluno.id, valor,
       formaPagamento: pagamentoForm.forma_pagamento,
       observacao: pagamentoForm.observacao,
     });
+    if (result.error) { setPagamentoError(result.error); setPagamentoSaving(false); return; }
     setPagamentoSaving(false);
     setCreditoAluno(null);
     router.refresh();
