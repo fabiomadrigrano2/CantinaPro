@@ -7,8 +7,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-
-const CANTINA_ID_TEMP = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { getCantinaId } from "@/lib/cantina";
 
 export async function createProduto(data: {
   emoji: string;
@@ -17,8 +16,9 @@ export async function createProduto(data: {
   estoque: number;
   estoque_minimo: number;
 }) {
+  const cantina_id = await getCantinaId();
+  if (!cantina_id) return { error: "Sessão expirada. Entre novamente." };
   const supabase = createAdminClient();
-  const cantina_id = CANTINA_ID_TEMP;
 
   const { error } = await supabase.from("produtos").insert({
     cantina_id,

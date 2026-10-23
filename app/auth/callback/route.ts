@@ -2,10 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buscarResponsavelPortal } from "@/lib/cantina";
 import type { Database } from "@/types/database.types";
 import type { CookieOptions } from "@supabase/ssr";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -46,16 +45,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/portal/login?error=nao_autorizado`);
   }
 
-  // Admin client bypasses RLS for verification
+  // Admin client bypasses RLS for verification. A cantina vem do cadastro
+  // do responsável (o portal é o mesmo para todas as cantinas).
   const admin = createAdminClient();
-
-  const { data: responsavel } = await admin
-    .from("responsaveis")
-    .select("id, user_id")
-    .ilike("email", user.email)
-    .eq("cantina_id", CANTINA_ID)
-    .limit(1)
-    .maybeSingle();
+  const responsavel = await buscarResponsavelPortal(user);
 
   if (!responsavel) {
     return NextResponse.redirect(`${origin}/portal/login?error=email_nao_cadastrado`);

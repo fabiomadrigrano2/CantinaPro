@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import ProdutosList from "@/components/produtos/ProdutosList";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 export default async function ProdutosPage() {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   const { data: produtos } = await supabase
@@ -21,7 +21,7 @@ export default async function ProdutosPage() {
           Gerencie os produtos e o cardápio da cantina
         </p>
       </div>
-      <ProdutosList initialProdutos={(produtos as any) ?? []} />
+      <ProdutosList initialProdutos={(produtos as any) ?? []} cantinaId={CANTINA_ID} />
     </AppLayout>
   );
 }

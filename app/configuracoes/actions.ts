@@ -5,8 +5,9 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { getCantinaId } from "@/lib/cantina";
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+const SEM_SESSAO = "Sessão expirada. Entre novamente.";
 
 export type CorrecaoVozRow = {
   id: string;
@@ -15,6 +16,8 @@ export type CorrecaoVozRow = {
 };
 
 export async function listarCorrecoesVoz(): Promise<CorrecaoVozRow[]> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return [];
   const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any)
@@ -39,6 +42,8 @@ export async function adicionarCorrecaoVoz(
   if (!f || !c) return { error: "Preencha os dois campos." };
   if (f.toLowerCase() === c.toLowerCase()) return { error: "O texto falado e a correção são iguais." };
 
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
@@ -55,6 +60,8 @@ export async function adicionarCorrecaoVoz(
 }
 
 export async function removerCorrecaoVoz(id: string): Promise<{ error?: string }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)

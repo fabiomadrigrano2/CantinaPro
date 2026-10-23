@@ -4,10 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { buscarResponsavelPortal, emailIlike } from "@/lib/cantina";
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-
-// Verifica apenas se o email é um responsável válido desta cantina.
+// Verifica apenas se o email é de um responsável cadastrado (em qualquer
+// cantina — o portal é o mesmo para todas; a cantina vem do cadastro).
 // O signInWithPassword é feito client-side para evitar o problema de
 // cookies de sessão não chegarem ao middleware via server action + redirect().
 export async function verifyResponsavel(
@@ -19,8 +19,7 @@ export async function verifyResponsavel(
   const { data: responsavel } = await admin
     .from("responsaveis")
     .select("id")
-    .ilike("email", emailNorm)
-    .eq("cantina_id", CANTINA_ID)
+    .ilike("email", emailIlike(emailNorm))
     .limit(1)
     .maybeSingle();
 
@@ -38,12 +37,11 @@ export async function solicitarSenhaTemporaria(
   const emailNorm = email.toLowerCase().trim();
   const admin = createAdminClient();
 
-  // 1. Verifica se o e-mail pertence a um responsável desta cantina
+  // 1. Verifica se o e-mail pertence a um responsável cadastrado
   const { data: responsavel } = await admin
     .from("responsaveis")
     .select("id")
-    .ilike("email", emailNorm)
-    .eq("cantina_id", CANTINA_ID)
+    .ilike("email", emailIlike(emailNorm))
     .limit(1)
     .maybeSingle();
 
@@ -121,14 +119,7 @@ export async function atualizarLimiteDiario(
   const valor = Math.max(0, Math.min(50, Math.round(limite)));
   const admin = createAdminClient();
 
-  const { data: responsavel } = await admin
-    .from("responsaveis")
-    .select("id")
-    .ilike("email", user.email)
-    .eq("cantina_id", CANTINA_ID)
-    .limit(1)
-    .maybeSingle();
-
+  const responsavel = await buscarResponsavelPortal(user);
   if (!responsavel) return { ok: false, error: "Responsável não encontrado." };
 
   const { data: link } = await admin
@@ -140,12 +131,22 @@ export async function atualizarLimiteDiario(
 
   if (!link) return { ok: false, error: "Aluno não encontrado." };
 
+  // O aluno precisa ser da mesma cantina do responsável
+  const { data: aluno } = await admin
+    .from("alunos")
+    .select("id")
+    .eq("id", link.aluno_id)
+    .eq("cantina_id", responsavel.cantina_id)
+    .maybeSingle();
+
+  if (!aluno) return { ok: false, error: "Aluno não encontrado." };
+
   const { error } = await admin
     .from("limites_aluno")
     .upsert(
       {
         aluno_id: link.aluno_id,
-        cantina_id: CANTINA_ID,
+        cantina_id: responsavel.cantina_id,
         limite_valor_diario: valor,
       },
       { onConflict: "aluno_id" },

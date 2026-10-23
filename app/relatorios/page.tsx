@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import RelatoriosView from "@/components/relatorios/RelatoriosView";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 // ── tipos exportados para os componentes filhos ───────────────────────────────
 
@@ -78,6 +77,7 @@ export default async function RelatoriosPage({
 }: {
   searchParams: { periodo?: string };
 }) {
+  const CANTINA_ID = await requireCantinaId();
   const periodo = (searchParams.periodo === "mensal" ? "mensal" : "semanal") as "semanal" | "mensal";
   const { start, end, label: periodoLabel } = periodRange(periodo);
   const supabase = createClient();

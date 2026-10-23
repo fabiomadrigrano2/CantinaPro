@@ -1,11 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CicloSemana } from "@/types/cobrancas";
 import type { Devedor } from "@/components/cobrancas/CobrancasList";
+import { requireCantinaId } from "@/lib/cantina";
 
 // Carga de dados compartilhada entre a tela de Cobranças e o Resumão da Semana
 // aberto pelo Dashboard.
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
 // Semanas em horário de Brasília (UTC-3 fixo, mesma premissa do Extrato).
 // O servidor da Vercel roda em UTC, então getDay()/setHours() locais cortavam
@@ -117,6 +116,7 @@ export type DadosCobrancas = {
 };
 
 export async function carregarDadosCobrancas(): Promise<DadosCobrancas> {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   const [{ data: devedores }, { data: semCredito }, { data: alunosSemanais }] = await Promise.all([
@@ -174,6 +174,7 @@ export async function carregarCiclosPendentes(
   alunoIds: string[],
   supabase: ReturnType<typeof createClient> = createClient()
 ): Promise<Record<string, CicloSemana[]>> {
+  const CANTINA_ID = await requireCantinaId();
   const semanaAtualStr = getWeekStartBR(new Date());
   const ciclosSemanaisPorAluno: Record<string, CicloSemana[]> = {};
 

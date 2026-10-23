@@ -6,8 +6,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { getCantinaId } from "@/lib/cantina";
 
 function todayBR(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -21,6 +20,8 @@ export async function cancelarPedido(pedidoId: string): Promise<{ error?: string
   const authClient = createClient();
   const { data: { user } } = await authClient.auth.getUser();
   if (!user) return { error: "Usuário não autenticado." };
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: "Usuário sem cantina vinculada." };
 
   const supabase = createAdminClient();
 
@@ -39,8 +40,8 @@ export async function cancelarPedido(pedidoId: string): Promise<{ error?: string
   }
 
   const [{ data: aluno, error: alunoError }, { data: conta }, { data: perfil }] = await Promise.all([
-    supabase.from("alunos").select("saldo, tipo_conta").eq("id", pedido.aluno_id).single(),
-    supabase.from("contas").select("id, saldo").eq("aluno_id", pedido.aluno_id).maybeSingle(),
+    supabase.from("alunos").select("saldo, tipo_conta").eq("id", pedido.aluno_id).eq("cantina_id", CANTINA_ID).single(),
+    supabase.from("contas").select("id, saldo").eq("aluno_id", pedido.aluno_id).eq("cantina_id", CANTINA_ID).maybeSingle(),
     supabase.from("perfis").select("nome").eq("id", user.id).maybeSingle(),
   ]);
 

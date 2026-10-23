@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import FornecedoresList from "@/components/fornecedores/FornecedoresList";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 function todayBR(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -15,6 +14,7 @@ function addDaysBR(dateStr: string, days: number): string {
 }
 
 export default async function FornecedoresPage() {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   const hoje = todayBR();

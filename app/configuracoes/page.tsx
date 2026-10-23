@@ -2,12 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import TreinamentoVoz from "@/components/configuracoes/TreinamentoVoz";
 import { listarCorrecoesVoz } from "@/app/configuracoes/actions";
+import { requireCantinaId } from "@/lib/cantina";
 
 export const dynamic = "force-dynamic";
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-
 export default async function ConfiguracoesPage() {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   // Mesmos filtros da Nova Venda, para o "Testar" entender igual à venda real

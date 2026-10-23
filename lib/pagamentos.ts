@@ -1,6 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { getCantinaId } from "@/lib/cantina";
 
 // Grava o pagamento no histórico (tabela pagamentos), exibido no Portal do
 // Responsável. Insere já como "confirmado": o trigger trg_creditar_pagamento
@@ -21,6 +20,8 @@ export async function salvarHistoricoPagamento({
   tipo: "credito" | "fiado";
   descricao: string;
 }): Promise<string | null> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return null;
   const supabase = createAdminClient();
 
   const { data: conta } = await supabase

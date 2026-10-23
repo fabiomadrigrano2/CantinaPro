@@ -6,8 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import { interpretarComandoVoz, type CorrecaoVoz } from "@/lib/vozComando";
 import { listarCorrecoesVoz } from "@/app/configuracoes/actions";
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-
 type Aluno = {
   id: string;
   nome: string;
@@ -68,7 +66,7 @@ function balanceColor(v: number) {
 
 // ── Component ──────────────────────────────────────────────────────────────────
 
-export default function NovaVenda() {
+export default function NovaVenda({ cantinaId: CANTINA_ID }: { cantinaId: string }) {
   const [phase, setPhase] = useState<Phase>("search");
   const [alunos, setAlunos] = useState<Aluno[]>([]);
   const [produtos, setProdutos] = useState<Produto[]>([]);

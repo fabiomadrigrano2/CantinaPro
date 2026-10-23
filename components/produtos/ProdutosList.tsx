@@ -20,8 +20,6 @@ type Produto = {
 
 // ── constantes ────────────────────────────────────────────────────────────────
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-
 const CATEGORIAS = [
   { value: "salgados",    label: "Salgados"    },
   { value: "bebidas",     label: "Bebidas"     },
@@ -51,7 +49,13 @@ const inputCls =
 
 // ── componente ────────────────────────────────────────────────────────────────
 
-export default function ProdutosList({ initialProdutos }: { initialProdutos: Produto[] }) {
+export default function ProdutosList({
+  initialProdutos,
+  cantinaId: CANTINA_ID,
+}: {
+  initialProdutos: Produto[];
+  cantinaId: string;
+}) {
   const router = useRouter();
 
   // estado local dos produtos para atualização imediata sem router.refresh()

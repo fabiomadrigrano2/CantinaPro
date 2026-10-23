@@ -35,8 +35,6 @@ type Responsavel = {
 
 // ── constantes ────────────────────────────────────────────────────────────────
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
-
 const FORMAS_PAGAMENTO = [
   { value: "dinheiro", label: "💵 Dinheiro" },
   { value: "pix",      label: "⚡ Pix"      },
@@ -75,7 +73,13 @@ const inputCls =
 
 // ── componente ────────────────────────────────────────────────────────────────
 
-export default function AlunosList({ initialAlunos }: { initialAlunos: AlunoComConta[] }) {
+export default function AlunosList({
+  initialAlunos,
+  cantinaId: CANTINA_ID,
+}: {
+  initialAlunos: AlunoComConta[];
+  cantinaId: string;
+}) {
   const router = useRouter();
   const [search,          setSearch]          = useState("");
   const [mostrarInativos, setMostrarInativos] = useState(false);

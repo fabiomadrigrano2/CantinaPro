@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import FinanceiroView from "@/components/financeiro/FinanceiroView";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 export default async function FinanceiroPage() {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   // Data de hoje no fuso Brasil (UTC-3)

@@ -5,12 +5,13 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { getCantinaId } from "@/lib/cantina";
 import type { Database } from "@/types/database.types";
 
 type FrequenciaEntrega = Database["public"]["Enums"]["frequencia_entrega_tipo"];
 type StatusPagamento = Database["public"]["Enums"]["compra_status_pagamento"];
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+const SEM_SESSAO = "Sessão expirada. Entre novamente.";
 
 export async function createFornecedor(data: {
   nome: string;
@@ -19,6 +20,8 @@ export async function createFornecedor(data: {
   frequencia_entrega: FrequenciaEntrega;
   observacoes: string;
 }): Promise<{ error?: string }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
   const { error } = await supabase.from("fornecedores").insert({
@@ -47,7 +50,13 @@ export async function registrarCompra(
     itens: { produto_id: string; quantidade: number }[];
   }
 ): Promise<{ error?: string }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
+
+  const { data: fornecedor } = await supabase
+    .from("fornecedores").select("id").eq("id", fornecedorId).eq("cantina_id", CANTINA_ID).maybeSingle();
+  if (!fornecedor) return { error: "Fornecedor não encontrado." };
 
   // Mescla itens com produto_id duplicado (defesa server-side — a UI já
   // impede duplicata escondendo produtos já adicionados do seletor).
@@ -58,11 +67,18 @@ export async function registrarCompra(
   }
   const itens = Array.from(itensMap, ([produto_id, quantidade]) => ({ produto_id, quantidade }));
 
+  if (itens.length > 0) {
+    const { data: proprios } = await supabase
+      .from("produtos").select("id").eq("cantina_id", CANTINA_ID).in("id", itens.map((i) => i.produto_id));
+    if ((proprios ?? []).length !== itens.length) return { error: "Produto não encontrado." };
+  }
+
   let descricaoFinal = data.descricao.trim();
   if (!descricaoFinal && itens.length > 0) {
     const { data: produtosNomes } = await supabase
       .from("produtos")
       .select("id, nome")
+      .eq("cantina_id", CANTINA_ID)
       .in("id", itens.map((i) => i.produto_id));
 
     const nomeMap = new Map((produtosNomes ?? []).map((p) => [p.id, p.nome]));
@@ -104,6 +120,7 @@ export async function registrarCompra(
       .from("produtos")
       .select("estoque")
       .eq("id", item.produto_id)
+      .eq("cantina_id", CANTINA_ID)
       .single();
 
     const novoEstoque = (produtoAtual?.estoque ?? 0) + item.quantidade;
@@ -111,7 +128,8 @@ export async function registrarCompra(
     const { error: estoqueError } = await supabase
       .from("produtos")
       .update({ estoque: novoEstoque })
-      .eq("id", item.produto_id);
+      .eq("id", item.produto_id)
+      .eq("cantina_id", CANTINA_ID);
 
     if (estoqueError) {
       return { error: `Compra registrada, mas falhou ao atualizar estoque: ${estoqueError.message}` };
@@ -136,12 +154,15 @@ export async function marcarCompraPaga(
   compraId: string,
   fornecedorId: string
 ): Promise<{ error?: string }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
   const { error } = await supabase
     .from("compras_fornecedores")
     .update({ status_pagamento: "pago", data_vencimento: null })
-    .eq("id", compraId);
+    .eq("id", compraId)
+    .eq("cantina_id", CANTINA_ID);
 
   if (error) return { error: error.message };
 

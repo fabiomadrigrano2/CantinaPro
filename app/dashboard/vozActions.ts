@@ -13,9 +13,9 @@ import { revalidatePath } from "next/cache";
 import { registrarPagamentoFiado, adicionarCredito } from "@/app/alunos/actions";
 import { quitarTudo } from "@/app/cobrancas/actions";
 import { carregarCiclosPendentes } from "@/lib/cobrancasDados";
+import { getCantinaId } from "@/lib/cantina";
 import type { TipoAcaoVoz, IntencaoVoz, FormaPagamento } from "@/lib/centralVoz";
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 const ORIGEM = "(via Modo Na Correria)";
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -48,7 +48,8 @@ export async function previaAcaoVoz({
   intencao: IntencaoVoz;
   valor: number | null;
 }): Promise<{ previa?: PreviaVoz; error?: string }> {
-  if (!(await usuarioLogado())) return { error: "Sessão expirada. Entre novamente." };
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: "Sessão expirada. Entre novamente." };
 
   const supabase = createAdminClient();
   const { data: aluno, error } = await supabase
@@ -106,10 +107,10 @@ type CicloRow = {
   forma_pagamento: string | null;
 };
 
-async function retrato(alunoId: string) {
+async function retrato(alunoId: string, CANTINA_ID: string) {
   const supabase = createAdminClient();
   const [{ data: aluno }, { data: conta }, { data: ciclos }] = await Promise.all([
-    supabase.from("alunos").select("saldo, conta_paga").eq("id", alunoId).single(),
+    supabase.from("alunos").select("saldo, conta_paga").eq("id", alunoId).eq("cantina_id", CANTINA_ID).single(),
     supabase.from("contas").select("saldo").eq("aluno_id", alunoId).eq("cantina_id", CANTINA_ID).maybeSingle(),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any)
@@ -149,9 +150,10 @@ export async function executarAcaoVoz({
   textoFalado: string;
 }): Promise<ResultadoExecucaoVoz> {
   const usuarioId = await usuarioLogado();
-  if (!usuarioId) return { error: "Sessão expirada. Entre novamente." };
+  const CANTINA_ID = await getCantinaId();
+  if (!usuarioId || !CANTINA_ID) return { error: "Sessão expirada. Entre novamente." };
 
-  const antes = await retrato(alunoId);
+  const antes = await retrato(alunoId, CANTINA_ID);
   if (antes.saldo === null) return { error: "Aluno não encontrado." };
   // O cartão mostrou um "saldo antes"; se mudou nesse meio-tempo (uma venda,
   // outra tela), a conta mostrada já não vale.
@@ -193,7 +195,7 @@ export async function executarAcaoVoz({
 
   if (resultado.error) return { error: resultado.error };
 
-  const depois = await retrato(alunoId);
+  const depois = await retrato(alunoId, CANTINA_ID);
 
   // Ciclos criados ou alterados pela ação, como estavam antes
   const ciclosAntes: Array<Record<string, unknown>> = [];
@@ -263,9 +265,16 @@ export async function desfazerAcaoVoz(
   acaoId: string
 ): Promise<{ ok?: boolean; error?: string; conflito?: string }> {
   const usuarioId = await usuarioLogado();
-  if (!usuarioId) return { error: "Sessão expirada. Entre novamente." };
+  const CANTINA_ID = await getCantinaId();
+  if (!usuarioId || !CANTINA_ID) return { error: "Sessão expirada. Entre novamente." };
 
   const supabase = createAdminClient();
+  // A função do banco roda como service role: confere a cantina antes
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: acaoPropria } = await (supabase as any)
+    .from("voz_acoes").select("id").eq("id", acaoId).eq("cantina_id", CANTINA_ID).maybeSingle();
+  if (!acaoPropria) return { error: "Ação não encontrada." };
+
   // Tudo numa transação no banco (ver desfazer_acao_voz em migration_central_voz.sql)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase as any).rpc("desfazer_acao_voz", {
@@ -300,7 +309,8 @@ export type AcaoVozRecente = {
 };
 
 export async function listarAcoesVoz(): Promise<{ acoes: AcaoVozRecente[]; error?: string }> {
-  if (!(await usuarioLogado())) return { acoes: [], error: "Sessão expirada." };
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { acoes: [], error: "Sessão expirada." };
 
   const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -319,7 +329,7 @@ export async function listarAcoesVoz(): Promise<{ acoes: AcaoVozRecente[]; error
   const ids = Array.from(new Set(rows.map((r) => r.aluno_id as string)));
   const nomes = new Map<string, string>();
   if (ids.length > 0) {
-    const { data: alunos } = await supabase.from("alunos").select("id, nome").in("id", ids);
+    const { data: alunos } = await supabase.from("alunos").select("id, nome").eq("cantina_id", CANTINA_ID).in("id", ids);
     for (const a of alunos ?? []) nomes.set(a.id, a.nome);
   }
 

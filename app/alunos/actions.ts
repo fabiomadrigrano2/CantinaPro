@@ -3,11 +3,23 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { salvarHistoricoPagamento } from "@/lib/pagamentos";
+import { getCantinaId, emailIlike } from "@/lib/cantina";
 import type { Database } from "@/types/database.types";
 
 type ContaTipo = Database["public"]["Enums"]["conta_tipo"];
 
-const CANTINA_ID_TEMP = "c7301d8b-890b-4775-986e-bb88979326f3";
+const SEM_SESSAO = "Sessão expirada. Entre novamente.";
+
+// O admin client ignora RLS: confirma que o aluno é da cantina do usuário
+async function alunoDaCantina(alunoId: string, cantinaId: string): Promise<boolean> {
+  const { data } = await createAdminClient()
+    .from("alunos")
+    .select("id")
+    .eq("id", alunoId)
+    .eq("cantina_id", cantinaId)
+    .maybeSingle();
+  return !!data;
+}
 
 function getWeekStart(date: Date): Date {
   const d = new Date(date);
@@ -27,6 +39,10 @@ export async function addResponsavel(
   data: { nome: string; email: string | null; parentesco: string | null }
 ): Promise<{ id: string; nome: string; email: string | null; parentesco: string | null } | { error: string }> {
   try {
+    const cantinaId = await getCantinaId();
+    if (!cantinaId) return { error: SEM_SESSAO };
+    if (!(await alunoDaCantina(alunoId, cantinaId))) return { error: "Aluno não encontrado." };
+
     const supabase = createAdminClient();
 
     // Reutiliza registro existente se o email já estiver cadastrado (evita duplicatas)
@@ -36,7 +52,8 @@ export async function addResponsavel(
       const { data: existing, error: existingError } = await supabase
         .from("responsaveis")
         .select("id, nome, email")
-        .ilike("email", data.email)
+        .ilike("email", emailIlike(data.email))
+        .eq("cantina_id", cantinaId)
         .limit(1)
         .maybeSingle();
 
@@ -50,7 +67,7 @@ export async function addResponsavel(
       } else {
         const { data: created, error: createError } = await supabase
           .from("responsaveis")
-          .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
+          .insert({ cantina_id: cantinaId, nome: data.nome, email: data.email })
           .select("id, nome, email")
           .single();
         if (createError) return { error: createError.message };
@@ -61,7 +78,7 @@ export async function addResponsavel(
       // Sem email: sempre cria novo registro
       const { data: created, error: createError } = await supabase
         .from("responsaveis")
-        .insert({ cantina_id: CANTINA_ID_TEMP, nome: data.nome, email: data.email })
+        .insert({ cantina_id: cantinaId, nome: data.nome, email: data.email })
         .select("id, nome, email")
         .single();
       if (createError) return { error: createError.message };
@@ -91,6 +108,10 @@ export async function removeResponsavel(
   alunoId: string,
   responsavelId: string
 ): Promise<{ error?: string }> {
+  const cantinaId = await getCantinaId();
+  if (!cantinaId) return { error: SEM_SESSAO };
+  if (!(await alunoDaCantina(alunoId, cantinaId))) return { error: "Aluno não encontrado." };
+
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("aluno_responsavel")
@@ -106,8 +127,9 @@ export async function createAluno(data: {
   tipo_conta: string;
   saldo_inicial: number;
 }) {
+  const cantina_id = await getCantinaId();
+  if (!cantina_id) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
-  const cantina_id = CANTINA_ID_TEMP;
 
   // Insere o aluno com turma como texto direto (sem FK para tabela turmas)
   const { data: aluno, error: alunoError } = await supabase
@@ -149,12 +171,14 @@ export async function registrarPagamentoFiado({
   formaPagamento: string;
   observacao?: string | null;
 }): Promise<{ error?: string; pagamentoId?: string | null }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
   const [{ data: aluno, error: alunoError }, { data: conta, error: contaError }] =
     await Promise.all([
-      supabase.from("alunos").select("saldo").eq("id", alunoId).single(),
-      supabase.from("contas").select("saldo").eq("aluno_id", alunoId).single(),
+      supabase.from("alunos").select("saldo").eq("id", alunoId).eq("cantina_id", CANTINA_ID).single(),
+      supabase.from("contas").select("saldo").eq("aluno_id", alunoId).eq("cantina_id", CANTINA_ID).single(),
     ]);
 
   if (alunoError || !aluno) return { error: "Aluno não encontrado" };
@@ -171,7 +195,7 @@ export async function registrarPagamentoFiado({
     supabase
       .from("pedidos")
       .select("total, criado_em")
-      .eq("cantina_id", CANTINA_ID_TEMP)
+      .eq("cantina_id", CANTINA_ID)
       .eq("aluno_id", alunoId)
       .eq("status", "confirmado")
       .gte("criado_em", ninetyDaysAgo.toISOString())
@@ -180,7 +204,7 @@ export async function registrarPagamentoFiado({
     supabase
       .from("ciclos_cobranca")
       .select("id, semana_inicio, semana_fim, total, status")
-      .eq("cantina_id", CANTINA_ID_TEMP)
+      .eq("cantina_id", CANTINA_ID)
       .eq("aluno_id", alunoId),
   ]);
 
@@ -225,7 +249,7 @@ export async function registrarPagamentoFiado({
       .from("ciclos_cobranca")
       .upsert(
         {
-          cantina_id: CANTINA_ID_TEMP,
+          cantina_id: CANTINA_ID,
           aluno_id: alunoId,
           semana_inicio: ciclo.semana_inicio,
           semana_fim: ciclo.semana_fim,
@@ -252,13 +276,15 @@ export async function registrarPagamentoFiado({
   const { error: errAluno } = await supabase
     .from("alunos")
     .update({ saldo: novoSaldoAluno, conta_paga: contaPaga })
-    .eq("id", alunoId);
+    .eq("id", alunoId)
+    .eq("cantina_id", CANTINA_ID);
   if (errAluno) return { error: errAluno.message };
 
   await supabase
     .from("contas")
     .update({ saldo: novoSaldoConta, atualizado_em: new Date().toISOString() })
-    .eq("aluno_id", alunoId);
+    .eq("aluno_id", alunoId)
+    .eq("cantina_id", CANTINA_ID);
 
   const obs =
     observacao?.trim() ||
@@ -290,16 +316,18 @@ export async function adicionarCredito({
   observacao?: string | null;
 }): Promise<{ error?: string; pagamentoId?: string | null }> {
   if (!(valor > 0)) return { error: "Informe um valor válido." };
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
   const { data: aluno, error: alunoError } = await supabase
-    .from("alunos").select("saldo").eq("id", alunoId).single();
+    .from("alunos").select("saldo").eq("id", alunoId).eq("cantina_id", CANTINA_ID).single();
   if (alunoError || !aluno) return { error: "Aluno não encontrado" };
 
   const novoSaldo = Math.round((Number(aluno.saldo ?? 0) + valor) * 100) / 100;
-  const { error } = await supabase.from("alunos").update({ saldo: novoSaldo }).eq("id", alunoId);
+  const { error } = await supabase.from("alunos").update({ saldo: novoSaldo }).eq("id", alunoId).eq("cantina_id", CANTINA_ID);
   if (error) return { error: error.message };
-  await supabase.from("contas").update({ saldo: novoSaldo }).eq("aluno_id", alunoId);
+  await supabase.from("contas").update({ saldo: novoSaldo }).eq("aluno_id", alunoId).eq("cantina_id", CANTINA_ID);
 
   const pagamentoId = await salvarHistoricoPagamento({
     alunoId,

@@ -2,8 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import AppLayout from "@/components/layout/AppLayout";
 import FornecedorDetail from "@/components/fornecedores/FornecedorDetail";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 function todayBR(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
@@ -14,6 +13,7 @@ export default async function FornecedorDetailPage({
 }: {
   params: { id: string };
 }) {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   const { data: fornecedor } = await supabase

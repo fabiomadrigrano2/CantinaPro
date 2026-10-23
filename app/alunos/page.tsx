@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import AlunosList from "@/components/alunos/AlunosList";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 export default async function AlunosPage() {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
   const { data: alunos, error } = await supabase
@@ -25,7 +25,7 @@ export default async function AlunosPage() {
           Gerencie os alunos e saldos cadastrados na cantina
         </p>
       </div>
-      <AlunosList initialAlunos={(alunos as any) ?? []} />
+      <AlunosList initialAlunos={(alunos as any) ?? []} cantinaId={CANTINA_ID} />
     </AppLayout>
   );
 }

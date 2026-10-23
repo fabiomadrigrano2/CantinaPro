@@ -4,8 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { salvarHistoricoPagamento } from "@/lib/pagamentos";
 import { carregarDadosCobrancas, type DadosCobrancas } from "@/lib/cobrancasDados";
+import { getCantinaId } from "@/lib/cantina";
 
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+const SEM_SESSAO = "Sessão expirada. Entre novamente.";
 
 export type ItemExtrato = { nome_produto: string; quantidade: number; preco_unitario: number | null };
 export type PedidoExtrato = { criado_em: string; total: number; itens: ItemExtrato[] };
@@ -17,6 +18,8 @@ export type PedidoExtrato = { criado_em: string; total: number; itens: ItemExtra
 export async function buscarExtratoAluno(
   alunoId: string
 ): Promise<{ pedidos?: PedidoExtrato[]; error?: string }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
   const desde = new Date();
@@ -61,7 +64,14 @@ export async function marcarCiclosComoPagos({
   formaPagamento: string;
 }): Promise<{ error?: string }> {
   if (ciclos.length === 0) return {};
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
+
+  // Valida o aluno antes de gravar qualquer ciclo
+  const { data: alunoOk } = await supabase
+    .from("alunos").select("id").eq("id", alunoId).eq("cantina_id", CANTINA_ID).maybeSingle();
+  if (!alunoOk) return { error: "Aluno não encontrado" };
 
   for (const ciclo of ciclos) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -87,8 +97,8 @@ export async function marcarCiclosComoPagos({
 
   const [{ data: aluno, error: alunoError }, { data: conta, error: contaError }] =
     await Promise.all([
-      supabase.from("alunos").select("saldo").eq("id", alunoId).single(),
-      supabase.from("contas").select("saldo").eq("aluno_id", alunoId).single(),
+      supabase.from("alunos").select("saldo").eq("id", alunoId).eq("cantina_id", CANTINA_ID).single(),
+      supabase.from("contas").select("saldo").eq("aluno_id", alunoId).eq("cantina_id", CANTINA_ID).single(),
     ]);
 
   if (alunoError || !aluno) return { error: "Aluno não encontrado" };
@@ -109,13 +119,15 @@ export async function marcarCiclosComoPagos({
   const { error: errAluno } = await supabase
     .from("alunos")
     .update({ saldo: novoSaldoAluno })
-    .eq("id", alunoId);
+    .eq("id", alunoId)
+    .eq("cantina_id", CANTINA_ID);
   if (errAluno) return { error: errAluno.message };
 
   await supabase
     .from("contas")
     .update({ saldo: novoSaldoConta, atualizado_em: new Date().toISOString() })
-    .eq("aluno_id", alunoId);
+    .eq("aluno_id", alunoId)
+    .eq("cantina_id", CANTINA_ID);
 
   const diaMes = (s: string) => s.split("-").reverse().slice(0, 2).join("/");
   const periodos = [...ciclos]
@@ -147,11 +159,13 @@ export async function quitarTudo({
   formaPagamento: string;
   observacao?: string;
 }): Promise<{ error?: string; pagamentoId?: string | null }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
   const [{ data: aluno, error: alunoError }, { data: conta }] = await Promise.all([
-    supabase.from("alunos").select("saldo").eq("id", alunoId).single(),
-    supabase.from("contas").select("saldo").eq("aluno_id", alunoId).maybeSingle(),
+    supabase.from("alunos").select("saldo").eq("id", alunoId).eq("cantina_id", CANTINA_ID).single(),
+    supabase.from("contas").select("saldo").eq("aluno_id", alunoId).eq("cantina_id", CANTINA_ID).maybeSingle(),
   ]);
   if (alunoError || !aluno) return { error: "Aluno não encontrado" };
 
@@ -182,14 +196,16 @@ export async function quitarTudo({
   const { error: errAluno } = await supabase
     .from("alunos")
     .update({ saldo: 0, conta_paga: true })
-    .eq("id", alunoId);
+    .eq("id", alunoId)
+    .eq("cantina_id", CANTINA_ID);
   if (errAluno) return { error: errAluno.message };
 
   if (conta && Number(conta.saldo ?? 0) < 0) {
     await supabase
       .from("contas")
       .update({ saldo: 0, atualizado_em: new Date().toISOString() })
-      .eq("aluno_id", alunoId);
+      .eq("aluno_id", alunoId)
+      .eq("cantina_id", CANTINA_ID);
   }
 
   const pagamentoId = await salvarHistoricoPagamento({

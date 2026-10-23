@@ -1,8 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import AppLayout from "@/components/layout/AppLayout";
 import HistoricoList from "@/components/historico/HistoricoList";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { requireCantinaId } from "@/lib/cantina";
 
 function todayBR(): string {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -30,6 +29,7 @@ export default async function HistoricoPage({
 }: {
   searchParams: { data?: string };
 }) {
+  const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
   const date = searchParams.data ?? todayBR();
   const { start, end } = dateRangeBR(date);

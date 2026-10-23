@@ -8,10 +8,9 @@ import AlertasSaldoBaixoSection, { type AlunoAlertaSaldo } from "@/components/da
 import AcoesRapidas from "@/components/dashboard/AcoesRapidas";
 import CentralVoz from "@/components/dashboard/CentralVoz";
 import type { AlunoFicha } from "@/components/alunos/FichaAlunoModal";
+import { requireCantinaId } from "@/lib/cantina";
 
 // ── constantes ────────────────────────────────────────────────────────────────
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -104,6 +103,7 @@ function VendasHojeCard({
 // ── página ────────────────────────────────────────────────────────────────────
 
 export default async function DashboardPage() {
+  const CANTINA_ID = await requireCantinaId();
   const supabase      = createClient();
   const supabaseAdmin = createAdminClient();
 

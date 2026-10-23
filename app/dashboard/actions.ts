@@ -2,14 +2,27 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
-
-const CANTINA_ID = "c7301d8b-890b-4775-986e-bb88979326f3";
+import { getCantinaId } from "@/lib/cantina";
 
 export async function salvarCardapioDoDia(
   data: string,
   itens: { produto_id: string; quantidade_disponivel: number }[]
 ): Promise<{ error?: string }> {
+  const CANTINA_ID = await getCantinaId();
+  if (!CANTINA_ID) return { error: "Sessão expirada. Entre novamente." };
   const supabase = createAdminClient();
+
+  // Só aceita produtos da própria cantina no cardápio
+  if (itens.length > 0) {
+    const { data: proprios } = await supabase
+      .from("produtos")
+      .select("id")
+      .eq("cantina_id", CANTINA_ID)
+      .in("id", itens.map((i) => i.produto_id));
+    if ((proprios ?? []).length !== new Set(itens.map((i) => i.produto_id)).size) {
+      return { error: "Produto não encontrado." };
+    }
+  }
 
   const idsAtuais = itens.map((i) => i.produto_id);
 
