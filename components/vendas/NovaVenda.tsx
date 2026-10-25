@@ -58,6 +58,10 @@ function buildNotificacaoConsumo(
   );
 }
 
+// Produto do cardápio padrão nasce com preço 0: não pode ser vendido assim
+const SEM_PRECO_MSG = "Defina o preço deste produto antes de vender";
+const semPreco = (p: { preco: number }) => !(Number(p.preco) > 0);
+
 function balanceColor(v: number) {
   if (v <= 0) return "text-red-400";
   if (v < 10) return "text-amber-400";
@@ -249,6 +253,12 @@ export default function NovaVenda({ cantinaId: CANTINA_ID }: { cantinaId: string
   }
 
   function addProduct(id: string) {
+    const product = produtos.find((p) => p.id === id);
+    if (product && semPreco(product)) {
+      setSaleError(`${SEM_PRECO_MSG}: ${product.nome}.`);
+      return;
+    }
+    setSaleError((e) => (e?.startsWith(SEM_PRECO_MSG) ? null : e));
     setCart((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
   }
 
@@ -287,15 +297,19 @@ export default function NovaVenda({ cantinaId: CANTINA_ID }: { cantinaId: string
     }
 
     const newCart: Record<string, number> = {};
+    const bloqueados: string[] = [];
     for (const { product, qty } of found) {
+      if (semPreco(product)) {
+        if (!bloqueados.includes(product.nome)) bloqueados.push(product.nome);
+        continue;
+      }
       newCart[product.id] = (newCart[product.id] ?? 0) + qty;
     }
 
-    setVoiceWarning(
-      notFound.length > 0
-        ? `Não reconhecido: ${notFound.map((x) => `"${x}"`).join(", ")}`
-        : null
-    );
+    const avisos: string[] = [];
+    if (notFound.length > 0) avisos.push(`Não reconhecido: ${notFound.map((x) => `"${x}"`).join(", ")}`);
+    if (bloqueados.length > 0) avisos.push(`${SEM_PRECO_MSG}: ${bloqueados.join(", ")}.`);
+    setVoiceWarning(avisos.length > 0 ? avisos.join(" · ") : null);
 
     setSelectedAluno(aluno);
     setCart(newCart);
@@ -364,6 +378,11 @@ export default function NovaVenda({ cantinaId: CANTINA_ID }: { cantinaId: string
 
   async function confirmSale() {
     if (!canConfirm || !selectedAluno) return;
+    const semPrecoNoCarrinho = cartItems.find(({ product }) => semPreco(product));
+    if (semPrecoNoCarrinho) {
+      setSaleError(`${SEM_PRECO_MSG}: ${semPrecoNoCarrinho.product.nome}.`);
+      return;
+    }
     setConfirming(true);
     setSaleError(null);
 
@@ -1019,9 +1038,15 @@ export default function NovaVenda({ cantinaId: CANTINA_ID }: { cantinaId: string
                       <p className="text-white font-semibold text-sm leading-snug line-clamp-2">
                         {p.nome}
                       </p>
-                      <p className="text-orange-400 font-bold text-base mt-1.5">
-                        {fmt(p.preco)}
-                      </p>
+                      {semPreco(p) ? (
+                        <p className="text-amber-400 font-semibold text-xs mt-1.5">
+                          Defina o preço
+                        </p>
+                      ) : (
+                        <p className="text-orange-400 font-bold text-base mt-1.5">
+                          {fmt(p.preco)}
+                        </p>
+                      )}
                     </div>
                   </button>
 

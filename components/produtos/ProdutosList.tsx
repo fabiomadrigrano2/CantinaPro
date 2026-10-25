@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { seedProdutosPadrao } from "@/app/produtos/actions";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -11,7 +12,7 @@ type Produto = {
   emoji: string;
   nome: string;
   preco: number;
-  estoque: number;
+  estoque: number | null;
   estoque_minimo: number;
   disponivel: boolean;
   categoria: string | null;
@@ -40,7 +41,8 @@ const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
 // Estoque é só informativo: sem alertas de "Esgotado"/"Crítico" e sem bloquear venda
-function stockInfo(estoque: number) {
+function stockInfo(estoque: number | null) {
+  if (estoque == null) return { label: "Sem estoque", cls: "bg-gray-400/10 text-gray-500 border-gray-400/20" };
   return { label: `${estoque} un.`, cls: "bg-gray-400/10 text-gray-400 border-gray-400/20" };
 }
 
@@ -85,6 +87,11 @@ export default function ProdutosList({
   const [deleteModal, setDeleteModal] = useState<Produto | null>(null);
   const [deleting,    setDeleting]    = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // cartão de boas-vindas (só para cantina sem nenhum produto)
+  const [boasVindasFechado, setBoasVindasFechado] = useState(false);
+  const [seeding,           setSeeding]           = useState(false);
+  const [seedError,         setSeedError]         = useState<string | null>(null);
 
   // sincroniza quando o Server Component revalida
   useEffect(() => {
@@ -147,7 +154,7 @@ export default function ProdutosList({
       emoji:          produto.emoji ?? "🍽️",
       nome:           produto.nome,
       preco:          String(produto.preco),
-      estoque:        String(produto.estoque),
+      estoque:        produto.estoque == null ? "" : String(produto.estoque),
       estoque_minimo: String(produto.estoque_minimo),
       categoria:      (produto.categoria as CategoriaValue) ?? "outros",
     });
@@ -203,7 +210,7 @@ export default function ProdutosList({
     setReposError(null);
 
     const supabase = createClient();
-    const novoEstoque = reposModal.estoque + qtd;
+    const novoEstoque = (reposModal.estoque ?? 0) + qtd;
 
     const { error: updateError } = await supabase
       .from("produtos")
@@ -327,10 +334,58 @@ export default function ProdutosList({
     setDeleteModal(null);
   }
 
+  async function handleSeedPadrao() {
+    setSeeding(true);
+    setSeedError(null);
+    const res = await seedProdutosPadrao();
+    setSeeding(false);
+    if (res.error) { setSeedError(res.error); return; }
+    router.refresh();
+  }
+
   const TABS = [
     { value: "todos" as const, label: "Todos" },
     ...CATEGORIAS,
   ];
+
+  if (produtos.length === 0 && !boasVindasFechado) {
+    return (
+      <div className="max-w-lg mx-auto bg-cp-surface border border-orange-500/30 rounded-2xl p-6 text-center shadow-lg shadow-orange-500/5">
+        <span className="text-5xl">👋</span>
+        <h2 className="mt-3 text-lg font-bold text-white">Bem-vindo ao CantinaPro!</h2>
+        <p className="mt-2 text-sm text-gray-400">
+          Quer começar com um cardápio padrão? Coxinha, Esfiha, Pão de Queijo, Pirulito,
+          Chocolate, Bala, Água, Suco e Refrigerante lata — depois é só definir os preços.
+          Tudo pode ser editado ou removido.
+        </p>
+
+        {seedError && (
+          <div className="mt-4 rounded-lg bg-red-500/10 border border-red-500/30 px-4 py-3 text-sm text-red-400">
+            {seedError}
+          </div>
+        )}
+
+        <div className="mt-5 flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => setBoasVindasFechado(true)}
+            disabled={seeding}
+            className="min-h-[44px] flex-1 py-2.5 rounded-lg border border-cp-border text-gray-400 hover:text-white hover:border-cp-muted text-sm font-medium transition disabled:opacity-50"
+          >
+            Começar do zero
+          </button>
+          <button
+            onClick={handleSeedPadrao}
+            disabled={seeding}
+            className="min-h-[44px] flex-1 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-orange-500/40 text-white text-sm font-semibold transition flex items-center justify-center gap-2"
+          >
+            {seeding ? (
+              <><span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Criando...</>
+            ) : "Usar cardápio padrão"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -459,6 +514,11 @@ export default function ProdutosList({
                   <p className="text-sm font-medium text-white leading-snug line-clamp-2">{p.nome}</p>
                   <p className="text-base font-bold text-orange-400">{fmt(p.preco)}</p>
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    {!(Number(p.preco) > 0) && (
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-full border bg-orange-500/15 text-orange-400 border-orange-500/40">
+                        Defina o preço
+                      </span>
+                    )}
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${stock.cls}`}>
                       {stock.label}
                     </span>
@@ -758,7 +818,7 @@ export default function ProdutosList({
                 </div>
                 <p className="text-white font-semibold">Estoque reposto com sucesso!</p>
                 <p className="text-sm text-gray-500">
-                  {reposModal.nome} — novo estoque: {reposModal.estoque + parseInt(reposQtd || "0")} un.
+                  {reposModal.nome} — novo estoque: {(reposModal.estoque ?? 0) + parseInt(reposQtd || "0")} un.
                 </p>
               </div>
             ) : (
@@ -771,7 +831,7 @@ export default function ProdutosList({
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Estoque atual</label>
                   <p className="text-sm font-semibold text-gray-300">
-                    {reposModal.estoque} unidade{reposModal.estoque !== 1 ? "s" : ""}
+                    {reposModal.estoque ?? 0} unidade{(reposModal.estoque ?? 0) !== 1 ? "s" : ""}
                   </p>
                 </div>
 
@@ -792,7 +852,7 @@ export default function ProdutosList({
                   />
                   {reposQtd && parseInt(reposQtd) > 0 && (
                     <p className="mt-1.5 text-xs text-gray-500">
-                      Novo estoque: <span className="text-emerald-400 font-semibold">{reposModal.estoque + parseInt(reposQtd)} un.</span>
+                      Novo estoque: <span className="text-emerald-400 font-semibold">{(reposModal.estoque ?? 0) + parseInt(reposQtd)} un.</span>
                     </p>
                   )}
                 </div>
