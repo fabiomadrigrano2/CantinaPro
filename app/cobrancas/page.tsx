@@ -8,7 +8,7 @@ export default async function CobrancasPage({
 }: {
   searchParams: { busca?: string };
 }) {
-  const { devedores, semCredito, alunosSemanais, ciclosSemanaisPorAluno, consumoSemana } =
+  const { devedores, semCredito, alunosSemanais, ciclosSemanaisPorAluno, consumoSemana, cantina } =
     await carregarDadosCobrancas();
 
   return (
@@ -25,6 +25,7 @@ export default async function CobrancasPage({
           alunosSemanais={alunosSemanais}
           ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
           consumoSemana={consumoSemana}
+          cantina={cantina}
         />
       </div>
       <CobrancasList
@@ -32,6 +33,7 @@ export default async function CobrancasPage({
         ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
         semCredito={semCredito}
         initialSearch={searchParams.busca ?? ""}
+        cantina={cantina}
       />
     </AppLayout>
   );

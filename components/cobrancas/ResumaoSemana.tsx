@@ -7,6 +7,7 @@ import {
 } from "@/components/cobrancas/CobrancasList";
 import { todayBR } from "@/components/cobrancas/ExtratoDetalhadoModal";
 import { baixarResumaoPdf } from "@/lib/resumaoPdf";
+import { linhaPix, saudacaoBR, type CantinaInfo } from "@/lib/cantinaInfo";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -38,12 +39,14 @@ function proximaCobranca(hoje: string, dia: number): string {
   return dt.toISOString().split("T")[0];
 }
 
-function buildMessageMensal(devedor: Devedor): string {
+function buildMessageMensal(devedor: Devedor, cantina: CantinaInfo): string {
   const nomeResp = devedor.nome_responsavel ?? devedor.nome.split(" ")[0];
+  // Chave Pix da própria cantina; sem chave cadastrada a linha some
+  const chavePix = linhaPix(cantina);
   return (
-    `Boa Tarde ${nomeResp} tudo bem com você?\n` +
-    `O total do(a) ${devedor.nome} em aberto na cantina é de ${fmt(Math.abs(devedor.saldo))}.\n` +
-    `Minha chave pix é meu celular 11958890917` +
+    `${saudacaoBR()} ${nomeResp}, tudo bem com você?\n` +
+    `O total do(a) ${devedor.nome} em aberto na cantina é de ${fmt(Math.abs(devedor.saldo))}.` +
+    (chavePix ? `\n${chavePix}` : "") +
     `\nMuito obrigado !`
   );
 }
@@ -70,12 +73,14 @@ export default function ResumaoSemana({
   alunosSemanais,
   ciclosSemanaisPorAluno,
   consumoSemana,
+  cantina,
 }: {
   devedores: Devedor[];
   alunosSemanais: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   // todos os pedidos confirmados desde segunda 00:00 (BRT), calculado no servidor
   consumoSemana: number;
+  cantina: CantinaInfo;
 }) {
   const [aberto, setAberto] = useState(false);
 
@@ -95,6 +100,7 @@ export default function ResumaoSemana({
           alunosSemanais={alunosSemanais}
           ciclosSemanaisPorAluno={ciclosSemanaisPorAluno}
           consumoSemana={consumoSemana}
+          cantina={cantina}
           onClose={() => setAberto(false)}
         />
       )}
@@ -107,12 +113,14 @@ export function ResumaoModal({
   alunosSemanais,
   ciclosSemanaisPorAluno,
   consumoSemana,
+  cantina,
   onClose,
 }: {
   devedores: Devedor[];
   alunosSemanais: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   consumoSemana: number;
+  cantina: CantinaInfo;
   onClose: () => void;
 }) {
   const [preview, setPreview] = useState<{ devedor: Devedor; initialMessage: string } | null>(null);
@@ -187,6 +195,7 @@ export function ResumaoModal({
     setError(null);
     try {
       await baixarResumaoPdf({
+        cantina,
         hoje,
         semanaInicio,
         semanaFim,
@@ -277,7 +286,7 @@ export function ResumaoModal({
                         <WhatsAppBtn
                           devedor={l.devedor}
                           onClick={() =>
-                            setPreview({ devedor: l.devedor, initialMessage: buildMessageSemanal(l.devedor, l.ciclos) })
+                            setPreview({ devedor: l.devedor, initialMessage: buildMessageSemanal(l.devedor, l.ciclos, cantina) })
                           }
                         />
                       ) : (
@@ -315,7 +324,7 @@ export function ResumaoModal({
                       <WhatsAppBtn
                         devedor={l.devedor}
                         onClick={() =>
-                          setPreview({ devedor: l.devedor, initialMessage: buildMessageMensal(l.devedor) })
+                          setPreview({ devedor: l.devedor, initialMessage: buildMessageMensal(l.devedor, cantina) })
                         }
                       />
                     </li>

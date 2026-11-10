@@ -4,49 +4,115 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { salvarHistoricoPagamento } from "@/lib/pagamentos";
 import { carregarDadosCobrancas, type DadosCobrancas } from "@/lib/cobrancasDados";
-import { getCantinaId } from "@/lib/cantina";
+import { buscarCantinaInfo, getCantinaId } from "@/lib/cantina";
+import type { CantinaInfo } from "@/lib/cantinaInfo";
+import { YMD_RE, diaBR, diasNoIntervalo, somarDias } from "@/lib/dataBR";
 
 const SEM_SESSAO = "Sessão expirada. Entre novamente.";
 
 export type ItemExtrato = { nome_produto: string; quantidade: number; preco_unitario: number | null };
 export type PedidoExtrato = { criado_em: string; total: number; itens: ItemExtrato[] };
+export type PagamentoExtrato = { criado_em: string; valor: number; forma_pagamento: string | null };
 
-// Busca pedidos confirmados dos últimos 65 dias — intervalo fixo que cobre
-// com folga os 4 filtros de período do Extrato (semana atual, últimos 30
-// dias, mês atual e mês anterior inteiro, mesmo no pior caso de dois meses
-// de 31 dias seguidos).
+export type ExtratoAluno = {
+  pedidos: PedidoExtrato[];
+  pagamentos: PagamentoExtrato[];
+  // alunos.saldo hoje (negativo = em aberto), o mesmo da tela de Cobranças
+  saldoAtual: number;
+  cantina: CantinaInfo;
+};
+
+const MAX_DIAS_EXTRATO = 366;
+
+// Pedidos e pagamentos confirmados (sem estornados, pendentes ou cancelados) do aluno entre inicio e
+// fim, inclusive — dias "YYYY-MM-DD" em America/Sao_Paulo. A consulta pega um
+// dia de folga em cada ponta (em UTC) e o corte exato é feito pelo dia em
+// Brasília de cada registro.
 export async function buscarExtratoAluno(
-  alunoId: string
-): Promise<{ pedidos?: PedidoExtrato[]; error?: string }> {
+  alunoId: string,
+  inicio: string,
+  fim: string
+): Promise<{ extrato?: ExtratoAluno; error?: string }> {
+  if (!YMD_RE.test(inicio) || !YMD_RE.test(fim) || inicio > fim) {
+    return { error: "Período inválido: a data inicial deve ser anterior ou igual à final." };
+  }
+  if (diasNoIntervalo(inicio, fim) > MAX_DIAS_EXTRATO) {
+    return { error: `Escolha um período de até ${MAX_DIAS_EXTRATO} dias.` };
+  }
+
   const CANTINA_ID = await getCantinaId();
   if (!CANTINA_ID) return { error: SEM_SESSAO };
   const supabase = createAdminClient();
 
-  const desde = new Date();
-  desde.setDate(desde.getDate() - 65);
-
-  const { data, error } = await (supabase as any)
-    .from("pedidos")
-    .select("criado_em, total, itens_pedido ( nome_produto, quantidade, preco_unitario )")
+  const { data: aluno } = await supabase
+    .from("alunos")
+    .select("saldo")
+    .eq("id", alunoId)
     .eq("cantina_id", CANTINA_ID)
-    .eq("aluno_id", alunoId)
-    .eq("status", "confirmado")
-    .gte("criado_em", desde.toISOString())
-    .order("criado_em", { ascending: true });
+    .maybeSingle();
+  if (!aluno) return { error: "Aluno não encontrado." };
 
-  if (error) return { error: error.message };
+  const desdeISO = `${somarDias(inicio, -1)}T00:00:00.000Z`;
+  const ateISO   = `${somarDias(fim, 2)}T00:00:00.000Z`;
+  const noPeriodo = (iso: string) => {
+    const dia = diaBR(iso);
+    return dia >= inicio && dia <= fim;
+  };
 
-  const pedidos: PedidoExtrato[] = (data ?? []).map((p: any) => ({
-    criado_em: p.criado_em,
-    total: p.total,
-    itens: (p.itens_pedido ?? []).map((i: any) => ({
-      nome_produto: i.nome_produto,
-      quantidade: i.quantidade,
-      preco_unitario: i.preco_unitario ?? null,
-    })),
-  }));
+  // Paginado pelo limite de 1000 linhas do PostgREST (períodos longos)
+  const PAGE_SIZE = 1000;
+  const pedidosDb: any[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await (supabase as any)
+      .from("pedidos")
+      .select("criado_em, total, itens_pedido ( nome_produto, quantidade, preco_unitario )")
+      .eq("cantina_id", CANTINA_ID)
+      .eq("aluno_id", alunoId)
+      .eq("status", "confirmado")
+      .gte("criado_em", desdeISO)
+      .lt("criado_em", ateISO)
+      .order("criado_em", { ascending: true })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) return { error: error.message };
+    pedidosDb.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) break;
+  }
 
-  return { pedidos };
+  const [{ data: pagamentosDb, error: errPag }, cantina] = await Promise.all([
+    (supabase as any)
+      .from("pagamentos")
+      .select("criado_em, valor, forma_pagamento")
+      .eq("cantina_id", CANTINA_ID)
+      .eq("aluno_id", alunoId)
+      .eq("status", "confirmado")
+      .gte("criado_em", desdeISO)
+      .lt("criado_em", ateISO)
+      .order("criado_em", { ascending: true }),
+    buscarCantinaInfo(CANTINA_ID),
+  ]);
+  if (errPag) return { error: errPag.message };
+
+  const pedidos: PedidoExtrato[] = pedidosDb
+    .filter((p) => noPeriodo(p.criado_em))
+    .map((p) => ({
+      criado_em: p.criado_em,
+      total: p.total,
+      itens: (p.itens_pedido ?? []).map((i: any) => ({
+        nome_produto: i.nome_produto,
+        quantidade: i.quantidade,
+        preco_unitario: i.preco_unitario ?? null,
+      })),
+    }));
+
+  const pagamentos: PagamentoExtrato[] = (pagamentosDb ?? [])
+    .filter((p: any) => p.criado_em && noPeriodo(p.criado_em))
+    .map((p: any) => ({
+      criado_em: p.criado_em,
+      valor: Number(p.valor) || 0,
+      forma_pagamento: p.forma_pagamento ?? null,
+    }));
+
+  return { extrato: { pedidos, pagamentos, saldoAtual: Number(aluno.saldo) || 0, cantina } };
 }
 
 export async function marcarCiclosComoPagos({

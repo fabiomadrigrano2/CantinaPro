@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { CicloSemana } from "@/types/cobrancas";
 import type { Devedor } from "@/components/cobrancas/CobrancasList";
-import { requireCantinaId } from "@/lib/cantina";
+import { buscarCantinaInfo, requireCantinaId } from "@/lib/cantina";
+import type { CantinaInfo } from "@/lib/cantinaInfo";
 
 // Carga de dados compartilhada entre a tela de Cobranças e o Resumão da Semana
 // aberto pelo Dashboard.
@@ -113,13 +114,15 @@ export type DadosCobrancas = {
   alunosSemanais: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   consumoSemana: number;
+  // nome, escola e Pix para as mensagens e o PDF do Resumão
+  cantina: CantinaInfo;
 };
 
 export async function carregarDadosCobrancas(): Promise<DadosCobrancas> {
   const CANTINA_ID = await requireCantinaId();
   const supabase = createClient();
 
-  const [{ data: devedores }, { data: semCredito }, { data: alunosSemanais }] = await Promise.all([
+  const [{ data: devedores }, { data: semCredito }, { data: alunosSemanais }, cantina] = await Promise.all([
     // Devedores: fiado (sempre devendo) + crédito com saldo negativo (estouraram
     // o pré-pago). Ambos têm extrato semanal e cobrança via WhatsApp iguais.
     supabase
@@ -148,6 +151,7 @@ export async function carregarDadosCobrancas(): Promise<DadosCobrancas> {
       .eq("ciclo_cobranca", "semanal")
       .eq("ativo", true)
       .order("nome"),
+    buscarCantinaInfo(CANTINA_ID),
   ]);
 
   const alunoIds = (devedores ?? []).map((a: any) => a.id as string);
@@ -164,6 +168,7 @@ export async function carregarDadosCobrancas(): Promise<DadosCobrancas> {
     alunosSemanais: (alunosSemanais as any) ?? [],
     ciclosSemanaisPorAluno,
     consumoSemana: await consumoSemanaPromise,
+    cantina,
   };
 }
 

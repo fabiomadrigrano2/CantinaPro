@@ -2,7 +2,7 @@
 // do extrato em lib/extratoPdf.ts; jsPDF carregado só no clique.
 // Fontes padrão do PDF não têm emoji — nada de emoji nos textos daqui.
 
-const CABECALHO = "CantinaPro — Cantina do Fabio | Colégio Nobilis";
+import { cabecalhoCantina, type CantinaInfo } from "@/lib/cantinaInfo";
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -34,7 +34,9 @@ export async function baixarResumaoPdf({
   semanais,
   mensais,
   totais,
+  cantina,
 }: {
+  cantina: CantinaInfo;
   hoje: string;          // YYYY-MM-DD
   semanaInicio: string;  // YYYY-MM-DD
   semanaFim: string;     // YYYY-MM-DD
@@ -56,6 +58,7 @@ export async function baixarResumaoPdf({
   const CINZA:   [number, number, number] = [107, 114, 128];
   const CLARO:   [number, number, number] = [243, 244, 246];
   const TEXTO:   [number, number, number] = [55, 65, 81];
+  const CABECALHO = cabecalhoCantina(cantina);
 
   let y = 0;
 
@@ -65,7 +68,10 @@ export async function baixarResumaoPdf({
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...ESCURO);
-    doc.text(CABECALHO, M, 15);
+    // nome + escola longos: reduz a fonte (até 9) e, se ainda não couber, corta
+    const largura = doc.getTextWidth(CABECALHO);
+    if (largura > W - 2 * M) doc.setFontSize(Math.max(9, (13 * (W - 2 * M)) / largura));
+    doc.text(doc.splitTextToSize(CABECALHO, W - 2 * M)[0] as string, M, 15);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...CINZA);

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { WHATSAPP_ICON } from "@/components/cobrancas/CobrancasList";
+import { linhaPix, saudacaoBR, type CantinaInfo } from "@/lib/cantinaInfo";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -20,21 +21,15 @@ export type AlunoAlertaSaldo = {
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
-function saudacao(): string {
-  const hora = Number(
-    new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hour12: false, timeZone: "America/Sao_Paulo" })
-      .format(new Date())
-  );
-  return hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
-}
-
-function buildMensagem(aluno: AlunoAlertaSaldo): string {
+function buildMensagem(aluno: AlunoAlertaSaldo, cantina: CantinaInfo): string {
   const resp = aluno.nomeResponsavel?.trim();
+  // Chave Pix da própria cantina; sem chave cadastrada a linha some
+  const chavePix = linhaPix(cantina);
   return (
-    `${saudacao()}${resp ? ` ${resp}` : ""}!\n` +
+    `${saudacaoBR()}${resp ? ` ${resp}` : ""}!\n` +
     `O saldo do(a) ${aluno.nome} está em ${fmt(aluno.saldo)}.\n` +
     `Para continuar comprando normalmente, pedimos que efetue uma recarga.\n` +
-    `Minha chave pix é meu celular 11958890917\n` +
+    (chavePix ? `${chavePix}\n` : "") +
     `Obrigado! 🙏`
   );
 }
@@ -49,12 +44,14 @@ function buildWhatsAppUrl(tel: string, message: string): string {
 
 function AvisoWhatsAppModal({
   aluno,
+  cantina,
   onClose,
 }: {
   aluno: AlunoAlertaSaldo;
+  cantina: CantinaInfo;
   onClose: () => void;
 }) {
-  const [mensagemOriginal] = useState(() => buildMensagem(aluno));
+  const [mensagemOriginal] = useState(() => buildMensagem(aluno, cantina));
   const [msg, setMsg] = useState(mensagemOriginal);
   const waUrl = buildWhatsAppUrl(aluno.telefoneResponsavel ?? "", msg);
 
@@ -138,14 +135,20 @@ function AvisoWhatsAppModal({
 
 // ── componente ────────────────────────────────────────────────────────────────
 
-export default function AlertasSaldoBaixoSection({ alunos }: { alunos: AlunoAlertaSaldo[] }) {
+export default function AlertasSaldoBaixoSection({
+  alunos,
+  cantina,
+}: {
+  alunos: AlunoAlertaSaldo[];
+  cantina: CantinaInfo;
+}) {
   const [avisando, setAvisando] = useState<AlunoAlertaSaldo | null>(null);
 
   if (alunos.length === 0) return null;
 
   return (
     <section>
-      {avisando && <AvisoWhatsAppModal aluno={avisando} onClose={() => setAvisando(null)} />}
+      {avisando && <AvisoWhatsAppModal aluno={avisando} cantina={cantina} onClose={() => setAvisando(null)} />}
 
       <div className="flex items-center gap-2 mb-4">
         <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-widest">

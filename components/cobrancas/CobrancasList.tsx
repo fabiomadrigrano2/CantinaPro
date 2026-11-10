@@ -5,6 +5,7 @@ import type { CicloSemana } from "@/types/cobrancas";
 import { marcarCiclosComoPagos, quitarTudo } from "@/app/cobrancas/actions";
 import ExtratoDetalhadoModal from "@/components/cobrancas/ExtratoDetalhadoModal";
 import ExtratoPdfModal from "@/components/cobrancas/ExtratoPdfModal";
+import { linhaPix, saudacaoBR, type CantinaInfo } from "@/lib/cantinaInfo";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ function toDateStrClient(d: Date): string {
   return d.toISOString().split("T")[0];
 }
 
-export function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): string {
+export function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[], cantina: CantinaInfo): string {
   const nomeResp  = devedor.nome_responsavel ?? devedor.nome.split(" ")[0];
   const nomeAluno = devedor.nome;
 
@@ -63,31 +64,30 @@ export function buildMessageSemanal(devedor: Devedor, ciclos: CicloSemana[]): st
   // sempre feche com o saldo (ciclos pagos e pagamentos parciais já estão no saldo).
   const valorPassado = Math.max(0, Math.round((saldoDevedor - valorAtual) * 100) / 100);
 
-  const pix       = `Minha chave pix é meu celular 11958890917`;
+  // Chave Pix da própria cantina; sem chave cadastrada a linha some
+  const chavePix  = linhaPix(cantina);
+  const pix       = chavePix ? `\n${chavePix}` : "";
   const fechamento = `\nMuito obrigado ! Ótimo final de semana !`;
-  const saudacao  = `Boa Tarde ${nomeResp} tudo bem com você?\n`;
+  const saudacao  = `${saudacaoBR()} ${nomeResp}, tudo bem com você?\n`;
 
   let corpo: string;
 
   if (valorAtual > 0 && valorPassado < 0.005) {
     // Apenas semana atual — aluno adimplente
     corpo =
-      `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.\n` +
-      pix;
+      `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.`;
   } else if (valorAtual > 0) {
     // Semana atual + semanas anteriores em aberto
     corpo =
       `O total do(a) ${nomeAluno} essa semana da cantina foi de ${fmt(valorAtual)}.\n` +
-      `Somado ao valor da(s) semana(s) passada(s) (${fmt(valorPassado)}), totaliza ${fmt(saldoDevedor)}\n` +
-      pix;
+      `Somado ao valor da(s) semana(s) passada(s) (${fmt(valorPassado)}), totaliza ${fmt(saldoDevedor)}`;
   } else {
     // Sem ciclo na semana atual — apenas dívida de semanas anteriores
     corpo =
-      `O(a) ${nomeAluno} tem ${fmt(saldoDevedor)} em aberto na cantina referente a semana(s) anterior(es).\n` +
-      pix;
+      `O(a) ${nomeAluno} tem ${fmt(saldoDevedor)} em aberto na cantina referente a semana(s) anterior(es).`;
   }
 
-  return saudacao + corpo + fechamento;
+  return saudacao + corpo + pix + fechamento;
 }
 
 function buildCreditoMessage(aluno: AlunoSemCredito): string {
@@ -801,11 +801,13 @@ export default function CobrancasList({
   ciclosSemanaisPorAluno,
   semCredito,
   initialSearch,
+  cantina,
 }: {
   initialDevedores: Devedor[];
   ciclosSemanaisPorAluno: Record<string, CicloSemana[]>;
   semCredito: AlunoSemCredito[];
   initialSearch?: string;
+  cantina: CantinaInfo;
 }) {
   const [search,      setSearch]      = useState(initialSearch ?? "");
   const [turmaFiltro, setTurmaFiltro] = useState("todas");
@@ -916,7 +918,7 @@ export default function CobrancasList({
                 onPreview={() =>
                   setPreview({
                     devedor,
-                    initialMessage: buildMessageSemanal(devedor, ciclos),
+                    initialMessage: buildMessageSemanal(devedor, ciclos, cantina),
                   })
                 }
               />

@@ -82,6 +82,7 @@ export default function AcoesRapidas({ alunos }: { alunos: AlunoFicha[] }) {
           alunosSemanais={resumao.alunosSemanais}
           ciclosSemanaisPorAluno={resumao.ciclosSemanaisPorAluno}
           consumoSemana={resumao.consumoSemana}
+          cantina={resumao.cantina}
           onClose={() => setResumao(null)}
         />
       )}

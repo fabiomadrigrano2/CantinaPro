@@ -8,7 +8,7 @@ import AlertasSaldoBaixoSection, { type AlunoAlertaSaldo } from "@/components/da
 import AcoesRapidas from "@/components/dashboard/AcoesRapidas";
 import CentralVoz from "@/components/dashboard/CentralVoz";
 import type { AlunoFicha } from "@/components/alunos/FichaAlunoModal";
-import { requireCantinaId } from "@/lib/cantina";
+import { buscarCantinaInfo, requireCantinaId } from "@/lib/cantina";
 
 // ── constantes ────────────────────────────────────────────────────────────────
 
@@ -106,6 +106,7 @@ export default async function DashboardPage() {
   const CANTINA_ID = await requireCantinaId();
   const supabase      = createClient();
   const supabaseAdmin = createAdminClient();
+  const cantina       = await buscarCantinaInfo(CANTINA_ID);
 
   const hoje = todayBR();
   const { start: hojeStart, end: hojeEnd } = dateRangeBR(hoje);
@@ -329,7 +330,7 @@ export default async function DashboardPage() {
           <CobrancasHojeSection alunos={cobrancasHoje} />
 
           {/* Alunos abaixo do limite de alerta de saldo configurado no cadastro */}
-          <AlertasSaldoBaixoSection alunos={alertasSaldo} />
+          <AlertasSaldoBaixoSection alunos={alertasSaldo} cantina={cantina} />
 
           {/* Cardápio do dia */}
           <CardapioDoDia

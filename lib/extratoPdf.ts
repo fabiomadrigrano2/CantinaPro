@@ -1,21 +1,17 @@
-import type { PedidoExtrato } from "@/app/cobrancas/actions";
+import type { ExtratoAluno } from "@/app/cobrancas/actions";
+import { cabecalhoCantina, type CantinaInfo } from "@/lib/cantinaInfo";
+import {
+  ROTULO_SALDO_ATUAL, descreverSaldo, linhaDoTempo, rotuloPagamento, totaisExtrato,
+} from "@/lib/extrato";
 
 // Gera e baixa o PDF do extrato de consumo de um aluno. Roda no navegador;
 // o jsPDF é carregado só no clique para não pesar o bundle da tela.
 // Fontes padrão do PDF (Helvetica/WinAnsi) cobrem acentos e "—", mas não emoji.
 
-const CABECALHO = "CantinaPro — Cantina do Fabio | Colégio Nobilis";
-
 const DIAS_SEMANA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
 const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
-
-// Mesma premissa do Extrato: BR = UTC-3 fixo
-function toBRDateStr(iso: string): string {
-  const br = new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
-  return `${br.getUTCFullYear()}-${String(br.getUTCMonth() + 1).padStart(2, "0")}-${String(br.getUTCDate()).padStart(2, "0")}`;
-}
 
 function dataBR(ymd: string): string {
   const [y, m, d] = ymd.split("-");
@@ -33,51 +29,22 @@ function slug(s: string): string {
     .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-type ItemDia = { nome: string; quantidade: number; valor: number | null };
-
-function agruparPorDia(pedidos: PedidoExtrato[]) {
-  const dias: Record<string, { total: number; itens: Map<string, ItemDia> }> = {};
-
-  for (const p of pedidos) {
-    const dia = toBRDateStr(p.criado_em);
-    dias[dia] ??= { total: 0, itens: new Map() };
-    dias[dia].total += p.total;
-
-    // Soma itens repetidos no mesmo dia (mesmo produto e preço)
-    for (const i of p.itens) {
-      const chave = `${i.nome_produto}|${i.preco_unitario ?? ""}`;
-      const atual = dias[dia].itens.get(chave);
-      const valor = i.preco_unitario != null ? i.quantidade * i.preco_unitario : null;
-      if (atual) {
-        atual.quantidade += i.quantidade;
-        atual.valor = atual.valor != null && valor != null ? atual.valor + valor : null;
-      } else {
-        dias[dia].itens.set(chave, { nome: i.nome_produto, quantidade: i.quantidade, valor });
-      }
-    }
-  }
-
-  return Object.keys(dias).sort().map((dia) => ({
-    dia,
-    total: dias[dia].total,
-    itens: Array.from(dias[dia].itens.values()),
-  }));
-}
-
 export async function gerarExtratoPdf({
+  cantina,
   nomeAluno,
   turma,
   periodoLabel,
   inicio,
   fim,
-  pedidos,
+  extrato,
 }: {
+  cantina: CantinaInfo;
   nomeAluno: string;
   turma: string | null;
   periodoLabel: string;
   inicio: string;
   fim: string;
-  pedidos: PedidoExtrato[];
+  extrato: ExtratoAluno;
 }) {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -92,6 +59,8 @@ export async function gerarExtratoPdf({
   const ESCURO:  [number, number, number] = [17, 24, 39];
   const CINZA:   [number, number, number] = [107, 114, 128];
   const CLARO:   [number, number, number] = [243, 244, 246];
+  const VERDE:   [number, number, number] = [5, 150, 105];
+  const CABECALHO = cabecalhoCantina(cantina);
 
   let y = 0;
 
@@ -101,7 +70,10 @@ export async function gerarExtratoPdf({
     doc.setFont("helvetica", "bold");
     doc.setFontSize(13);
     doc.setTextColor(...ESCURO);
-    doc.text(CABECALHO, M, 15);
+    // nome + escola longos: reduz a fonte (até 9) e, se ainda não couber, corta
+    const largura = doc.getTextWidth(CABECALHO);
+    if (largura > W - 2 * M) doc.setFontSize(Math.max(9, (13 * (W - 2 * M)) / largura));
+    doc.text(doc.splitTextToSize(CABECALHO, W - 2 * M)[0] as string, M, 15);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
     doc.setTextColor(...CINZA);
@@ -141,19 +113,33 @@ export async function gerarExtratoPdf({
   doc.text(`${periodoLabel}  ·  ${dataBR(inicio)} a ${dataBR(fim)}`, M + 24, y + 2.5);
   y += 16;
 
-  // ── detalhamento por dia ──
-  const dias = agruparPorDia(pedidos);
-  const total = pedidos.reduce((s, p) => s + p.total, 0);
+  // ── consumo por dia e pagamentos, em ordem cronológica ──
+  const eventos = linhaDoTempo(extrato.pedidos, extrato.pagamentos);
+  const { consumido, pago } = totaisExtrato(extrato.pedidos, extrato.pagamentos);
 
-  if (dias.length === 0) {
+  if (eventos.length === 0) {
     doc.setFont("helvetica", "italic");
     doc.setFontSize(10);
     doc.setTextColor(...CINZA);
-    doc.text("Nenhum consumo registrado neste período.", M, y);
+    doc.text("Nenhum consumo ou pagamento registrado neste período.", M, y);
     y += 10;
   }
 
-  for (const { dia, total: totalDia, itens } of dias) {
+  for (const evento of eventos) {
+    if (evento.tipo === "pagamento") {
+      novaPaginaSePreciso(8 + 3);
+      doc.setFillColor(236, 253, 245);
+      doc.rect(M, y - 4.5, W - 2 * M, 7, "F");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(...VERDE);
+      doc.text(`${diaSemana(evento.dia)}, ${dataBR(evento.dia)} — ${rotuloPagamento(evento.forma)}`, M + 3, y);
+      doc.text(fmt(evento.valor), W - M - 3, y, { align: "right" });
+      y += 10;
+      continue;
+    }
+
+    const { dia, total: totalDia, itens } = evento;
     const tituloDia = (continuacao: boolean) => {
       doc.setFillColor(...CLARO);
       doc.rect(M, y - 4.5, W - 2 * M, 7, "F");
@@ -189,17 +175,29 @@ export async function gerarExtratoPdf({
     y += 3;
   }
 
-  // ── total em destaque ──
-  novaPaginaSePreciso(18);
+  // ── resumo: consumido, pago e saldo atual em destaque ──
+  novaPaginaSePreciso(18 + 16);
   y += 2;
+  doc.setFillColor(...CLARO);
+  doc.roundedRect(M, y, W - 2 * M, 16, 2, 2, "F");
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(...ESCURO);
+  doc.text("Total consumido no período", M + 5, y + 6);
+  doc.text(fmt(consumido), W - M - 5, y + 6, { align: "right" });
+  doc.setTextColor(...VERDE);
+  doc.text("Total pago no período", M + 5, y + 12);
+  doc.text(fmt(pago), W - M - 5, y + 12, { align: "right" });
+  y += 18;
+
   doc.setFillColor(...LARANJA);
   doc.roundedRect(M, y, W - 2 * M, 14, 2, 2, "F");
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("TOTAL DO PERÍODO", M + 5, y + 9);
-  doc.setFontSize(14);
-  doc.text(fmt(total), W - M - 5, y + 9.2, { align: "right" });
+  doc.setFontSize(10.5);
+  doc.text(ROTULO_SALDO_ATUAL.toUpperCase(), M + 5, y + 9);
+  doc.setFontSize(13);
+  doc.text(descreverSaldo(extrato.saldoAtual), W - M - 5, y + 9.2, { align: "right" });
 
   // ── rodapé em todas as páginas ──
   const geradoEm = new Intl.DateTimeFormat("pt-BR", {

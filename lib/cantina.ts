@@ -2,6 +2,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { CantinaInfo } from "@/lib/cantinaInfo";
 
 // Cantina do usuário logado (perfis.cantina_id) — a mesma regra de
 // minha_cantina_id() no banco. Toda query feita com o admin client (que ignora
@@ -29,6 +30,23 @@ export async function requireCantinaId(): Promise<string> {
   const { data: { user } } = await createClient().auth.getUser();
   redirect(user ? "/portal/dashboard" : "/login");
 }
+
+// Nome, escola e chave Pix da cantina, para cabeçalhos de PDF e mensagens.
+export const buscarCantinaInfo = cache(async (cantinaId: string): Promise<CantinaInfo> => {
+  const { data } = await createAdminClient()
+    .from("cantinas")
+    .select("nome, escola, pix_chave, pix_tipo, pix_nome")
+    .eq("id", cantinaId)
+    .maybeSingle();
+
+  return {
+    nome:     data?.nome ?? "Cantina",
+    escola:   data?.escola ?? null,
+    pixChave: data?.pix_chave ?? null,
+    pixTipo:  data?.pix_tipo ?? null,
+    pixNome:  data?.pix_nome ?? null,
+  };
+});
 
 // Escapa curingas do ILIKE (% e _) para comparar e-mail sem diferenciar
 // maiúsculas, mas sem casar outros e-mails por padrão.

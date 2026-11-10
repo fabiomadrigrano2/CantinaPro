@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buscarExtratoAluno, type PedidoExtrato } from "@/app/cobrancas/actions";
+import { buscarExtratoAluno } from "@/app/cobrancas/actions";
 import {
-  PERIODOS, getPeriodo, todayBR, toBRDateStr, type Periodo,
+  CamposPeriodo, PERIODOS, getPeriodo, intervaloInicial, todayBR, validarIntervalo,
+  type Intervalo, type Periodo,
 } from "@/components/cobrancas/ExtratoDetalhadoModal";
 import { baixarExtratoPdf } from "@/lib/extratoPdf";
 
@@ -14,21 +15,12 @@ export default function ExtratoPdfModal({
   aluno: { id: string; nome: string; turma: string | null };
   onClose: () => void;
 }) {
-  const [pedidos, setPedidos] = useState<PedidoExtrato[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gerando, setGerando] = useState<Periodo | null>(null);
   const hoje = useMemo(() => todayBR(), []);
-
-  useEffect(() => {
-    let cancelado = false;
-    (async () => {
-      const result = await buscarExtratoAluno(aluno.id);
-      if (cancelado) return;
-      if (result.error) setError(result.error);
-      else setPedidos(result.pedidos ?? []);
-    })();
-    return () => { cancelado = true; };
-  }, [aluno.id]);
+  const [escolhendo, setEscolhendo] = useState(false);
+  const [personalizado, setPersonalizado] = useState<Intervalo>(() => intervaloInicial(hoje));
+  const erroIntervalo = validarIntervalo(personalizado);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -36,23 +28,25 @@ export default function ExtratoPdfModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  // Busca consumo e pagamentos só do período escolhido, no clique
   async function handleBaixar(id: Periodo) {
-    if (!pedidos) return;
-    const periodo = getPeriodo(id, hoje);
+    const periodo = getPeriodo(id, hoje, personalizado);
     setGerando(id);
     setError(null);
     try {
+      const result = await buscarExtratoAluno(aluno.id, periodo.inicio, periodo.fim);
+      if (result.error || !result.extrato) {
+        setError(result.error ?? "Falha ao carregar o extrato.");
+        return;
+      }
       await baixarExtratoPdf({
+        cantina:      result.extrato.cantina,
         nomeAluno:    aluno.nome,
         turma:        aluno.turma,
-        // o PDF já imprime as datas; tira o "(dd/mm a dd/mm)" do rótulo
-        periodoLabel: periodo.label.replace(/ \(.*\)$/, ""),
+        periodoLabel: periodo.titulo,
         inicio:       periodo.inicio,
         fim:          periodo.fim,
-        pedidos:      pedidos.filter((p) => {
-          const dia = toBRDateStr(p.criado_em);
-          return dia >= periodo.inicio && dia <= periodo.fim;
-        }),
+        extrato:      result.extrato,
       });
       onClose();
     } catch (e) {
@@ -61,6 +55,10 @@ export default function ExtratoPdfModal({
       setGerando(null);
     }
   }
+
+  const spinner = (
+    <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin shrink-0" />
+  );
 
   return (
     <div
@@ -89,33 +87,55 @@ export default function ExtratoPdfModal({
 
         <div className="p-5 space-y-2">
           <p className="text-sm text-gray-500 mb-3">Escolha o período para baixar:</p>
-          {PERIODOS.map((p) => {
+          {PERIODOS.filter((p) => p.id !== "personalizado").map((p) => {
             const periodo = getPeriodo(p.id, hoje);
-            const carregando = pedidos === null && !error;
             return (
               <button
                 key={p.id}
                 type="button"
                 onClick={() => handleBaixar(p.id)}
-                disabled={carregando || gerando !== null || !pedidos}
+                disabled={gerando !== null}
                 className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-cp-border bg-cp-elevated text-left transition-all hover:border-orange-500/50 hover:bg-orange-500/5 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-white">{p.label}</p>
                   <p className="text-sm text-gray-500 mt-0.5">{periodo.label}</p>
                 </div>
-                {gerando === p.id ? (
-                  <span className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                ) : (
+                {gerando === p.id ? spinner : (
                   <span className="text-sm font-semibold text-orange-400 shrink-0">Baixar</span>
                 )}
               </button>
             );
           })}
 
-          {pedidos === null && !error && (
-            <p className="text-sm text-gray-500 text-center pt-1">Carregando consumos…</p>
-          )}
+          <div className="rounded-xl border border-cp-border bg-cp-elevated">
+            <button
+              type="button"
+              onClick={() => setEscolhendo((v) => !v)}
+              aria-expanded={escolhendo}
+              className="w-full min-h-[48px] flex items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+              <p className="text-sm font-semibold text-white">Escolher período</p>
+              <span className="text-sm text-gray-500 shrink-0">{escolhendo ? "▲" : "▼"}</span>
+            </button>
+            {escolhendo && (
+              <div className="px-4 pb-4 space-y-3">
+                <CamposPeriodo valor={personalizado} onChange={setPersonalizado} erro={erroIntervalo} />
+                <button
+                  type="button"
+                  onClick={() => handleBaixar("personalizado")}
+                  disabled={gerando !== null || !!erroIntervalo}
+                  className="w-full min-h-[44px] flex items-center justify-center gap-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {gerando === "personalizado" && (
+                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
+                  )}
+                  Baixar PDF do período
+                </button>
+              </div>
+            )}
+          </div>
+
           {error && <p className="text-sm text-red-400 pt-1">{error}</p>}
         </div>
       </div>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { buscarExtratoAluno, type PedidoExtrato } from "@/app/cobrancas/actions";
 import {
-  PERIODOS, getPeriodo, montarExtrato, todayBR, toBRDateStr, type Periodo,
+  CamposPeriodo, PERIODOS, getPeriodo, intervaloInicial, montarExtrato, todayBR,
+  useExtratoAluno, validarIntervalo, type Intervalo, type Periodo,
 } from "@/components/cobrancas/ExtratoDetalhadoModal";
 import { WHATSAPP_ICON } from "@/components/cobrancas/CobrancasList";
 import { baixarExtratoPdf } from "@/lib/extratoPdf";
+import { linhaDoTempo, rotuloPagamento, totaisExtrato } from "@/lib/extrato";
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -31,9 +32,9 @@ function rotuloDia(ymd: string): string {
   return `${DIAS_SEMANA[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]} ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
 }
 
-function resumoItens(itens: { nome_produto: string; quantidade: number }[]): string {
+function resumoItens(itens: { nome: string; quantidade: number }[]): string {
   return itens
-    .map((i) => (i.quantidade > 1 ? `${i.nome_produto} x${i.quantidade}` : i.nome_produto))
+    .map((i) => (i.quantidade > 1 ? `${i.nome} x${i.quantidade}` : i.nome))
     .join(", ");
 }
 
@@ -46,25 +47,14 @@ export default function FichaAlunoModal({
   aluno: AlunoFicha;
   onClose: () => void;
 }) {
+  const hoje = useMemo(() => todayBR(), []);
   const [periodo, setPeriodo] = useState<Periodo>("semana_atual");
-  const [pedidos, setPedidos] = useState<PedidoExtrato[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [personalizado, setPersonalizado] = useState<Intervalo>(() => intervaloInicial(hoje));
   const [copiado, setCopiado] = useState(false);
   const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [erroPdf, setErroPdf] = useState<string | null>(null);
 
-  const hoje = useMemo(() => todayBR(), []);
   const tel = aluno.telefone_responsavel?.replace(/\D/g, "") ?? "";
-
-  useEffect(() => {
-    let cancelado = false;
-    (async () => {
-      const result = await buscarExtratoAluno(aluno.id);
-      if (cancelado) return;
-      if (result.error) setError(result.error);
-      else setPedidos(result.pedidos ?? []);
-    })();
-    return () => { cancelado = true; };
-  }, [aluno.id]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -72,33 +62,24 @@ export default function FichaAlunoModal({
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const periodoAtual = useMemo(() => getPeriodo(periodo, hoje), [periodo, hoje]);
+  const erroIntervalo = periodo === "personalizado" ? validarIntervalo(personalizado) : null;
+  const periodoAtual = useMemo(
+    () => getPeriodo(periodo, hoje, personalizado),
+    [periodo, hoje, personalizado]
+  );
+  const { extrato, error: erroExtrato, carregando } = useExtratoAluno(
+    aluno.id,
+    erroIntervalo ? null : periodoAtual
+  );
+  const error = erroExtrato ?? erroPdf;
 
-  const pedidosDoPeriodo = useMemo(() => {
-    if (!pedidos) return [];
-    return pedidos.filter((p) => {
-      const dia = toBRDateStr(p.criado_em);
-      return dia >= periodoAtual.inicio && dia <= periodoAtual.fim;
-    });
-  }, [pedidos, periodoAtual]);
-
-  // Consumo agrupado por dia, mais recente primeiro
-  const dias = useMemo(() => {
-    const porDia: Record<string, { total: number; itens: { nome_produto: string; quantidade: number }[] }> = {};
-    for (const p of pedidosDoPeriodo) {
-      const dia = toBRDateStr(p.criado_em);
-      if (!porDia[dia]) porDia[dia] = { total: 0, itens: [] };
-      porDia[dia].total += p.total;
-      porDia[dia].itens.push(...p.itens);
-    }
-    return Object.entries(porDia)
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([dia, v]) => ({ dia, ...v }));
-  }, [pedidosDoPeriodo]);
-
-  const totalPeriodo = pedidosDoPeriodo.reduce((s, p) => s + p.total, 0);
-  const textoExtrato = pedidos ? montarExtrato(aluno.nome, periodoAtual.label, pedidosDoPeriodo) : "";
-  const carregando = pedidos === null && !error;
+  // Consumo por dia e pagamentos, mais recente primeiro
+  const eventos = useMemo(
+    () => (extrato ? linhaDoTempo(extrato.pedidos, extrato.pagamentos).reverse() : []),
+    [extrato]
+  );
+  const totais = extrato ? totaisExtrato(extrato.pedidos, extrato.pagamentos) : { consumido: 0, pago: 0 };
+  const textoExtrato = extrato ? montarExtrato(aluno.nome, periodoAtual.label, extrato) : "";
 
   function handleCopiar() {
     navigator.clipboard.writeText(textoExtrato).then(() => {
@@ -108,21 +89,21 @@ export default function FichaAlunoModal({
   }
 
   async function handlePdf() {
-    if (!pedidos) return;
+    if (!extrato) return;
     setGerandoPdf(true);
-    setError(null);
+    setErroPdf(null);
     try {
       await baixarExtratoPdf({
+        cantina:      extrato.cantina,
         nomeAluno:    aluno.nome,
         turma:        aluno.turma,
-        // o PDF já imprime as datas; tira o "(dd/mm a dd/mm)" do rótulo
-        periodoLabel: periodoAtual.label.replace(/ \(.*\)$/, ""),
+        periodoLabel: periodoAtual.titulo,
         inicio:       periodoAtual.inicio,
         fim:          periodoAtual.fim,
-        pedidos:      pedidosDoPeriodo,
+        extrato,
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao gerar o PDF.");
+      setErroPdf(e instanceof Error ? e.message : "Falha ao gerar o PDF.");
     } finally {
       setGerandoPdf(false);
     }
@@ -196,6 +177,8 @@ export default function FichaAlunoModal({
                 type="button"
                 onClick={() => setPeriodo(p.id)}
                 className={`min-h-[44px] px-3 rounded-xl text-sm font-semibold border transition-all ${
+                  p.id === "personalizado" ? "col-span-2" : ""
+                } ${
                   periodo === p.id
                     ? "bg-orange-500/15 border-orange-500/40 text-orange-400"
                     : "bg-cp-elevated border-cp-border text-gray-400 hover:border-gray-500"
@@ -205,9 +188,19 @@ export default function FichaAlunoModal({
               </button>
             ))}
           </div>
-          <div className="flex items-baseline justify-between gap-3 mt-4 mb-2">
-            <p className="text-sm text-gray-400">{periodoAtual.label}</p>
-            <p className="text-base font-bold text-white tabular-nums shrink-0">{fmt(totalPeriodo)}</p>
+          {periodo === "personalizado" && (
+            <div className="mt-3">
+              <CamposPeriodo valor={personalizado} onChange={setPersonalizado} erro={erroIntervalo} />
+            </div>
+          )}
+          <div className="mt-4 mb-2">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm text-gray-400">{periodoAtual.label}</p>
+              <p className="text-base font-bold text-white tabular-nums shrink-0">{fmt(totais.consumido)}</p>
+            </div>
+            {totais.pago > 0 && (
+              <p className="text-sm text-emerald-400 text-right tabular-nums">Pago no período: {fmt(totais.pago)}</p>
+            )}
           </div>
         </div>
 
@@ -221,19 +214,30 @@ export default function FichaAlunoModal({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
             </div>
-          ) : dias.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-500">Nenhum consumo neste período.</p>
+          ) : !extrato ? null : eventos.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-500">Nenhum consumo ou pagamento neste período.</p>
           ) : (
             <ul className="rounded-xl border border-cp-border divide-y divide-cp-border overflow-hidden">
-              {dias.map((d) => (
-                <li key={d.dia} className="px-4 py-3 bg-cp-elevated/40">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="text-sm font-semibold text-gray-200">{rotuloDia(d.dia)}</span>
-                    <span className="text-sm font-bold text-white tabular-nums shrink-0">{fmt(d.total)}</span>
-                  </div>
-                  <p className="text-sm text-gray-400 mt-0.5 break-words">{resumoItens(d.itens)}</p>
-                </li>
-              ))}
+              {eventos.map((e) =>
+                e.tipo === "consumo" ? (
+                  <li key={`c-${e.dia}`} className="px-4 py-3 bg-cp-elevated/40">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-semibold text-gray-200">{rotuloDia(e.dia)}</span>
+                      <span className="text-sm font-bold text-white tabular-nums shrink-0">{fmt(e.total)}</span>
+                    </div>
+                    <p className="text-sm text-gray-400 mt-0.5 break-words">{resumoItens(e.itens)}</p>
+                  </li>
+                ) : (
+                  <li key={`p-${e.quando}-${e.valor}`} className="px-4 py-3 bg-emerald-500/5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm font-semibold text-emerald-400">
+                        {rotuloDia(e.dia)} · {rotuloPagamento(e.forma)}
+                      </span>
+                      <span className="text-sm font-bold text-emerald-400 tabular-nums shrink-0">{fmt(e.valor)}</span>
+                    </div>
+                  </li>
+                )
+              )}
             </ul>
           )}
         </div>
@@ -242,20 +246,20 @@ export default function FichaAlunoModal({
         <div className="flex gap-2 px-5 py-4 border-t border-cp-border shrink-0">
           <button
             onClick={handleCopiar}
-            disabled={pedidos === null}
+            disabled={!extrato}
             className={`${acaoBase} bg-cp-elevated border border-cp-border text-gray-200 hover:border-gray-500`}
           >
             <span>📋</span>
             {copiado ? "Copiado!" : "Copiar"}
           </button>
           <a
-            href={tel && pedidos !== null ? `https://wa.me/55${tel}?text=${encodeURIComponent(textoExtrato)}` : undefined}
+            href={tel && extrato ? `https://wa.me/55${tel}?text=${encodeURIComponent(textoExtrato)}` : undefined}
             target="_blank"
             rel="noopener noreferrer"
-            aria-disabled={!tel || pedidos === null}
+            aria-disabled={!tel || !extrato}
             title={tel ? "Enviar extrato no WhatsApp" : "Cadastre o telefone no perfil do aluno"}
             className={`${acaoBase} ${
-              tel && pedidos !== null
+              tel && extrato
                 ? "bg-emerald-500 hover:bg-emerald-600 text-white shadow shadow-emerald-500/20"
                 : "bg-gray-700 text-gray-400 cursor-not-allowed pointer-events-none"
             }`}
@@ -265,7 +269,7 @@ export default function FichaAlunoModal({
           </a>
           <button
             onClick={handlePdf}
-            disabled={pedidos === null || gerandoPdf}
+            disabled={!extrato || gerandoPdf}
             className={`${acaoBase} bg-cp-elevated border border-cp-border text-gray-200 hover:border-gray-500`}
           >
             <span>📄</span>
